@@ -20,3 +20,6 @@ This is not done in an advance method, but it does support drag and drop.
 In this step, it will simply look through "Terraria.exe" for any embeded dll files, and rename them(only the ones I know about, so this method isn't futureproof). This step doesn't remove and embeded files from the .exe, only copying them out. This step is skipped over if all dependencies is found. It also only extracts the ones missing.
 4. Patching and launching.
    in this last step, the injector will load all assemblies and try to patch them with Harmony to the loaded Terraria.exe (from step 1) and call the LaunchGame method from the loaded exe.
+
+#### How to create a patch/mod
+Basic knowledge of HarmonyLib is required. You also need to reference both Harmony(0Harmony.dll) and Terraria(Terraria.exe). In the ExampleMod folder there is a example of how you can write a mod. This one is also in the release.
