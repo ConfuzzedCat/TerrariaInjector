@@ -11,7 +11,7 @@ Because of how it works, you will need to run the injector everytime you want to
 Simply rename the injector to either "uninstall" or "remove". This will delete the  Mods folder, the extracted resources(see more at how it works), the Harmony dll and the exe itself.
 
 #### How does it work?
-The injecting can be put into x steps.
+The injecting can be put into 4 steps.
 1. Finding and loading the Terraria.exe
 This is not done in an advance method, but it does support drag and drop. 
 2. Checking for game dependencies.
