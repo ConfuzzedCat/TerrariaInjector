@@ -3,7 +3,7 @@ using HarmonyLib;
 using Terraria;
 using Terraria.DataStructures;
 
-namespace TerrariaTestInjector
+namespace TerrariaInjector
 {
     [HarmonyPatch]
     class Patches
