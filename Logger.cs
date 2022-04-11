@@ -1,5 +1,7 @@
 ﻿using System;
 using System.IO;
+using System.Reflection;
+
 public static class Logger
 {
     public static string LogFilePath
@@ -75,8 +77,9 @@ public static class Logger
 
     public static string Debug(string message)
     {
+        string logFrom = Assembly.GetCallingAssembly().GetName().Name;
         string time = DateTime.Now.ToString(TimeFormat);
-        string v = $"{time} [Debug] {message}";
+        string v = $"{time} [Debug] [{logFrom}] {message}";
         if (0 >= LogLevel)
         {
             LogWriter.WriteLine(v);
@@ -86,8 +89,9 @@ public static class Logger
 
     public static string Info(string message)
     {
+        string logFrom = Assembly.GetCallingAssembly().GetName().Name;
         string time = DateTime.Now.ToString(TimeFormat);
-        string v = $"{time} [Info ] {message}";
+        string v = $"{time} [Info ] [{logFrom}] {message}";
         if (1 >= LogLevel)
         {
             LogWriter.WriteLine(v);
@@ -97,8 +101,9 @@ public static class Logger
 
     public static string Warn(string message)
     {
+        string logFrom = Assembly.GetCallingAssembly().GetName().Name;
         string time = DateTime.Now.ToString(TimeFormat);
-        string v = $"{time} [Warn ] {message}";
+        string v = $"{time} [Warn ] [{logFrom}] {message}";
         if (2 >= LogLevel)
         {
             LogWriter.WriteLine(v);
@@ -108,10 +113,9 @@ public static class Logger
 
     public static string Error(string message, Exception ex)
     {
+        string logFrom = Assembly.GetCallingAssembly().GetName().Name;
         string time = DateTime.Now.ToString(TimeFormat);
-
-        string v = $"{time} [Error] {message}\n{ex}";
-
+        string v = $"{time} [Error] [{logFrom}] {message}\n{ex}";
         if (3 >= LogLevel)
         {
             LogWriter.WriteLine(v);
@@ -121,8 +125,9 @@ public static class Logger
 
     public static string Fatal(string message, Exception ex)
     {
+        string logFrom = Assembly.GetCallingAssembly().GetName().Name;
         string time = DateTime.Now.ToString(TimeFormat);
-        string v = $"{time} [Fatal] {message}\n{ex}";
+        string v = $"{time} [Fatal] [{logFrom}] {message}\n{ex}";
         if (4 >= LogLevel)
         {
             LogWriter.WriteLine(v);

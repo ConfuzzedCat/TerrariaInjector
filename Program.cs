@@ -124,11 +124,12 @@ namespace TerrariaInjector
                 }
                 object[] gameParam = new object[] { args, false };
 
-                AppDomain.CurrentDomain.ExecuteAssemblyByName(game.GetName());
+                //AppDomain.CurrentDomain.ExecuteAssemblyByName(game.GetName());
+                game.GetType("Terraria.Program").GetMethod("LaunchGame").Invoke(new object(), gameParam);
             }
             catch (Exception e)
             {
-                Console.WriteLine(Logger.Error("Fatal error!",e));
+                Console.WriteLine(Logger.Fatal("Fatal error!",e));
             }
             finally
             {
@@ -219,6 +220,7 @@ namespace TerrariaInjector
             }
             catch (Exception ex)
             {
+                Console.WriteLine(Logger.Error("Error trying to load Assembly",ex));
                 return null;
             }
         }
