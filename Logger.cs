@@ -83,6 +83,7 @@ public static class Logger
         if (0 >= LogLevel)
         {
             LogWriter.WriteLine(v);
+            Console.WriteLine(v);
         }
         return v;
     }
@@ -95,6 +96,7 @@ public static class Logger
         if (1 >= LogLevel)
         {
             LogWriter.WriteLine(v);
+            Console.WriteLine(v);
         }
         return v;
     }
@@ -107,6 +109,7 @@ public static class Logger
         if (2 >= LogLevel)
         {
             LogWriter.WriteLine(v);
+            Console.WriteLine(v);
         }
         return v;
     }
@@ -119,6 +122,7 @@ public static class Logger
         if (3 >= LogLevel)
         {
             LogWriter.WriteLine(v);
+            Console.WriteLine(v);
         }
         return v;
     }
@@ -131,6 +135,7 @@ public static class Logger
         if (4 >= LogLevel)
         {
             LogWriter.WriteLine(v);
+            Console.WriteLine(v);
         }
         return v;
     }

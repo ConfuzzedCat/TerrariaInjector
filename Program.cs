@@ -11,6 +11,7 @@ namespace TerrariaInjector
     class Program
     {
         private static List<string> modDependencies { get; set; }
+        public static Assembly game { get; set; }
         static void Main(string[] args)
         {
             try
@@ -28,8 +29,8 @@ namespace TerrariaInjector
                     {
                         if (args[i].ToLower().Contains("terraria"))
                         {
-                            Console.WriteLine(Logger.Info(args[i])); 
-                            terrariaExePath = args[i].Replace("\"","");
+                            Logger.Info(args[i]);
+                            terrariaExePath = args[i].Replace("\"", "");
                         }
                     }
                 }
@@ -39,7 +40,7 @@ namespace TerrariaInjector
                 }
                 List<string> mods = Directory.GetFiles(modFolder, "*.dll").OfType<string>().ToList();
                 modDependencies = Directory.GetFiles(Path.Combine(modFolder, "Libs"), "*.dll").OfType<string>().ToList();
-                Assembly game = Assembly.LoadFile(terrariaExePath);
+                game = Assembly.LoadFile(terrariaExePath);
                 List<string> gameDependencies = new List<string>()
                 {
                     "CsvHelper.dll",
@@ -61,14 +62,14 @@ namespace TerrariaInjector
                     Directory.Delete(modFolder, true);
                     Delete();
                 }
-                Console.WriteLine(Logger.Info("Checking for dependencies..."));
+                Logger.Info("Checking for dependencies...");
                 List<string> existingDependencies = new List<string>();
                 foreach (var item in gameDependencies)
                 {
                     if (File.Exists(Path.Combine(terrariaPath, item)))
                     {
                         existingDependencies.Add(item);
-                        Console.WriteLine(Logger.Info("Found: " + item));
+                        Logger.Info("Found: " + item);
                     }
                 }
                 foreach (var item in existingDependencies)
@@ -78,7 +79,7 @@ namespace TerrariaInjector
 
                 if (gameDependencies.Count >= 1)
                 {
-                    Console.WriteLine(Logger.Info("Missing Game dependencies... Extracting from Terraria.exe!"));
+                    Logger.Info("Missing Game dependencies... Extracting from Terraria.exe!");
                     foreach (var file in game.GetManifestResourceNames())
                     {
                         string f = file;
@@ -92,14 +93,14 @@ namespace TerrariaInjector
                                 {
                                     CopyStream(input, _file);
                                 }
-                                Console.WriteLine(Logger.Info("Extracted: " + f));
+                                Logger.Info("Extracted: " + f);
                             }
                         }
                     }
                 }
                 else
                 {
-                    Console.WriteLine(Logger.Info("All dependencies found..."));
+                    Logger.Info("All dependencies found...");
                 }
                 if (!(modDependencies is null))
                 {
@@ -108,20 +109,21 @@ namespace TerrariaInjector
                         AppDomain.CurrentDomain.Load(Assembly.LoadFile(Path.GetFullPath(file)).GetName());
                     }
                 }
-                
-                
-                Console.WriteLine(Logger.Info("Initializing patching..."));
+
+
+                Logger.Info("Initializing patching...");
                 Harmony harmony = new Harmony("com.github.confuzzedcat.terraria.terrariainjector");
                 foreach (var mod in mods)
                 {
                     Assembly _mod = Assembly.LoadFile(mod);
-                    Console.WriteLine(Logger.Info("Mod loaded: " + _mod.GetName()));
+                    Logger.Info("Mod loaded: " + _mod.GetName());
                     harmony.PatchAll(_mod);
                 }
                 foreach (var method in harmony.GetPatchedMethods())
                 {
-                    Console.WriteLine(Logger.Info($"Patch method: \"{method.Name}\""));
+                    Logger.Info($"Patch method: \"{method.Name}\"");
                 }
+                harmony.PatchAll(Assembly.GetExecutingAssembly());
                 object[] gameParam = new object[] { args, false };
 
                 //AppDomain.CurrentDomain.ExecuteAssemblyByName(game.GetName());
@@ -129,11 +131,11 @@ namespace TerrariaInjector
             }
             catch (Exception e)
             {
-                Console.WriteLine(Logger.Fatal("Fatal error!",e));
+                Logger.Fatal("Fatal error!", e);
             }
             finally
             {
-                Console.WriteLine(Logger.Info("Closing..."));
+                Logger.Info("Closing...");
                 Logger.Stop();
                 System.Threading.Thread.Sleep(1000);
             }
@@ -191,7 +193,7 @@ namespace TerrariaInjector
             batchCommands += "@ECHO OFF\n";                         // Do not show any output
             batchCommands += "ping 127.0.0.1 > nul\n";              // Wait approximately 4 seconds (so that the process is already terminated)
             batchCommands += "echo j | del /F ";                    // Delete the executeable
-            batchCommands += exeFileName + "\n"; 
+            batchCommands += exeFileName + "\n";
             batchCommands += "echo j | del /F ";                    // Delete the executeable
             batchCommands += injectorDependency + "\n";
             batchCommands += "echo j | del TerrariaInjectorUninstaller.bat";    // Delete this bat file
@@ -220,9 +222,21 @@ namespace TerrariaInjector
             }
             catch (Exception ex)
             {
-                Console.WriteLine(Logger.Error("Error trying to load Assembly",ex));
+                Logger.Error("Error trying to load Assembly", ex);
                 return null;
             }
+        }
+    }
+    [HarmonyPatch]
+    public class MainMenuPatch
+    {
+        public static MethodBase TargetMethod()
+        {
+            return Program.game.GetType("Terraria.Main").GetMethod("DrawVersionNumber", BindingFlags.NonPublic | BindingFlags.Static);
+        }
+        public static void Prefix()
+        {
+            Program.game.GetType("Terraria.Main").GetField("versionNumber").SetValue(null, "v1.4.3.6 - Injected");
         }
     }
 }
