@@ -137,7 +137,7 @@ namespace TerrariaInjector
             {
                 Logger.Info("Closing...");
                 Logger.Stop();
-                System.Threading.Thread.Sleep(1000);
+                System.Threading.Thread.Sleep(2500);
             }
         }
         public static void CopyStream(Stream input, Stream output)
@@ -220,13 +220,14 @@ namespace TerrariaInjector
             {
                 return Assembly.LoadFrom(asmFile);
             }
-            catch (Exception ex)
+            catch (Exception e)
             {
-                Logger.Error("Error trying to load Assembly", ex);
+                Logger.Error("Error trying to load Assembly", e);
                 return null;
             }
         }
     }
+    
     [HarmonyPatch]
     public class MainMenuPatch
     {
@@ -239,4 +240,5 @@ namespace TerrariaInjector
             Program.game.GetType("Terraria.Main").GetField("versionNumber").SetValue(null, "v1.4.3.6 - Injected");
         }
     }
+    
 }
