@@ -1,17 +1,17 @@
-﻿using System;
+﻿using HarmonyLib;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using HarmonyLib;
 
 namespace TerrariaInjector
 {
     class Program
     {
-        private static List<string> modDependencies { get; set; }
-        public static Assembly game { get; set; }
+        internal static Assembly game;
+        internal static int modCount;
         static void Main(string[] args)
         {
             try
@@ -19,89 +19,49 @@ namespace TerrariaInjector
                 Console.Title = "TerrariaInjector";
                 Logger.Start();
                 AppDomain.CurrentDomain.AssemblyResolve += DependencyResolveEventHandler;
+
                 string terrariaPath = Directory.GetCurrentDirectory();
                 string terrariaExePath = Path.Combine(terrariaPath, "Terraria.exe");
                 string modFolder = Path.Combine(terrariaPath, "Mods");
+                string modDepsFolder = Path.Combine(modFolder, "Libs");
                 string injectorEXE = Assembly.GetExecutingAssembly().CodeBase.Replace("file:///", string.Empty).Replace("/", "\\");
-                if (args != null)
+
+                if (!File.Exists(terrariaExePath))
                 {
-                    for (int i = 0; i < args.Length; i++)
-                    {
-                        if (args[i].ToLower().Contains("terraria"))
-                        {
-                            Logger.Info(args[i]);
-                            terrariaExePath = args[i].Replace("\"", "");
-                        }
-                    }
+                    throw new Exception("Terraria.exe Not Found!");
                 }
+
                 if (!Directory.Exists(modFolder))
                 {
                     Directory.CreateDirectory(modFolder);
                 }
-                List<string> mods = Directory.GetFiles(modFolder, "*.dll").OfType<string>().ToList();
-                modDependencies = Directory.GetFiles(Path.Combine(modFolder, "Libs"), "*.dll").OfType<string>().ToList();
-                game = Assembly.LoadFile(terrariaExePath);
-                List<string> gameDependencies = new List<string>()
+                if (!Directory.Exists(modDepsFolder))
                 {
-                    "CsvHelper.dll",
-                    "Ionic.Zip.CF.dll",
-                    "MP3Sharp.dll",
-                    "Newtonsoft.Json.dll",
-                    "NVorbis.dll",
-                    "RailSDK.Net.dll",
-                    "ReLogic.dll",
-                    "Steamworks.NET.dll",
-                    "System.ValueTuple.dll",
-                };
-                if (injectorEXE.ToLower().Contains("uninstall") || injectorEXE.ToLower().Contains("remove"))
-                {
-                    foreach (var item in gameDependencies)
-                    {
-                        File.Delete(Path.Combine(terrariaPath, item));
-                    }
-                    Directory.Delete(modFolder, true);
-                    Delete();
-                }
-                Logger.Info("Checking for dependencies...");
-                List<string> existingDependencies = new List<string>();
-                foreach (var item in gameDependencies)
-                {
-                    if (File.Exists(Path.Combine(terrariaPath, item)))
-                    {
-                        existingDependencies.Add(item);
-                        Logger.Info("Found: " + item);
-                    }
-                }
-                foreach (var item in existingDependencies)
-                {
-                    gameDependencies.Remove(item);
+                    Directory.CreateDirectory(modDepsFolder);
                 }
 
-                if (gameDependencies.Count >= 1)
+                Delete(modFolder);
+
+                string[] mods = Directory.GetFiles(modFolder, "*.dll");
+                modCount = mods.Length;
+                string[] modDependencies = Directory.GetFiles(modDepsFolder, "*.dll");
+
+                game = Assembly.LoadFile(terrariaExePath);
+
+                Logger.Info("Loading Game dependencies");
+
+
+
+                foreach (var file in game.GetManifestResourceNames())
                 {
-                    Logger.Info("Missing Game dependencies... Extracting from Terraria.exe!");
-                    foreach (var file in game.GetManifestResourceNames())
+                    if (file.Contains(".dll"))
                     {
-                        string f = file;
-                        foreach (string item in gameDependencies)
-                        {
-                            if (f.Contains(item))
-                            {
-                                Stream input = game.GetManifestResourceStream(f);
-                                f = Rename(f);
-                                using (Stream _file = File.Create(Path.Combine(terrariaPath, f)))
-                                {
-                                    CopyStream(input, _file);
-                                }
-                                Logger.Info("Extracted: " + f);
-                            }
-                        }
+                        Stream input = game.GetManifestResourceStream(file);
+                        Assembly.Load(ReadStreamAssembly(input));
+                        Logger.Info("Loaded: " + file);
                     }
                 }
-                else
-                {
-                    Logger.Info("All dependencies found...");
-                }
+
                 if (!(modDependencies is null))
                 {
                     foreach (var file in modDependencies)
@@ -110,7 +70,14 @@ namespace TerrariaInjector
                     }
                 }
 
-
+                string savePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "My Games", "Terraria");
+                if (!Directory.Exists(savePath))
+                {
+                    Exception e = new DirectoryNotFoundException(savePath);
+                    Logger.Fatal("Default save folder doesn't exist.", e);
+                    throw e;
+                }
+                game.GetType("Terraria.Program").GetField("SavePath").SetValue(null, savePath);
                 Logger.Info("Initializing patching...");
                 Harmony harmony = new Harmony("com.github.confuzzedcat.terraria.terrariainjector");
                 foreach (var mod in mods)
@@ -124,10 +91,11 @@ namespace TerrariaInjector
                     Logger.Info($"Patch method: \"{method.Name}\"");
                 }
                 harmony.PatchAll(Assembly.GetExecutingAssembly());
-                object[] gameParam = new object[] { args, false };
 
-                //AppDomain.CurrentDomain.ExecuteAssemblyByName(game.GetName());
-                game.GetType("Terraria.Program").GetMethod("LaunchGame").Invoke(new object(), gameParam);
+                object[] gameParam = new object[] { args };
+                MethodInfo entryMethod = game.EntryPoint;
+
+                entryMethod.Invoke(null, gameParam);
             }
             catch (Exception e)
             {
@@ -140,68 +108,39 @@ namespace TerrariaInjector
                 System.Threading.Thread.Sleep(2500);
             }
         }
-        public static void CopyStream(Stream input, Stream output)
+        private static byte[] ReadStreamAssembly(Stream assemblyStream)
         {
-            byte[] buffer = new byte[8 * 1024];
-            int len;
-            while ((len = input.Read(buffer, 0, buffer.Length)) > 0)
+            byte[] array = new byte[assemblyStream.Length];
+            using (Stream a = assemblyStream)
             {
-                output.Write(buffer, 0, len);
+                a.Read(array, 0, array.Length);
             }
+            return array;
         }
-        private static string Rename(string filename)
+        private static void Delete(string modFolder)
         {
-            switch (filename)
-            {
-                case "Terraria.Libraries.ReLogic.ReLogic.dll":
-                    return "ReLogic.dll";
-
-                case "Terraria.Libraries.DotNetZip.Ionic.Zip.CF.dll":
-                    return "Ionic.Zip.CF.dll";
-
-                case "Terraria.Libraries.JSON.NET.Newtonsoft.Json.dll":
-                    return "Newtonsoft.Json.dll";
-
-                case "Terraria.Libraries.CsvHelper.CsvHelper.dll":
-                    return "CsvHelper.dll";
-
-                case "Terraria.Libraries.NVorbis.NVorbis.dll":
-                    return "NVorbis.dll";
-
-                case "Terraria.Libraries.NVorbis.System.ValueTuple.dll":
-                    return "System.ValueTuple.dll";
-
-                case "Terraria.Libraries.MP3Sharp.MP3Sharp.dll":
-                    return "MP3Sharp.dll";
-
-                case "Terraria.Libraries.Steamworks.NET.Windows.Steamworks.NET.dll":
-                    return "Steamworks.NET.dll";
-
-                case "Terraria.Libraries.RailSDK.Windows.RailSDK.Net.dll":
-                    return "RailSDK.Net.dll";
-                default:
-                    return "";
-            }
-        }
-        private static void Delete()
-        {
-            string batchCommands = string.Empty;
             string exeFileName = Assembly.GetExecutingAssembly().CodeBase.Replace("file:///", string.Empty).Replace("/", "\\");
-            string injectorDependency = Path.Combine(Directory.GetCurrentDirectory(), "0Harmony.dll");
+            if (exeFileName.ToLower().Contains("uninstall") || exeFileName.ToLower().Contains("remove"))
+            {
+                Directory.Delete(modFolder, true);
+
+                string batchCommands = string.Empty;
+                string injectorDependency = Path.Combine(Directory.GetCurrentDirectory(), "0Harmony.dll");
 
 
-            batchCommands += "@ECHO OFF\n";                         // Do not show any output
-            batchCommands += "ping 127.0.0.1 > nul\n";              // Wait approximately 4 seconds (so that the process is already terminated)
-            batchCommands += "echo j | del /F ";                    // Delete the executeable
-            batchCommands += exeFileName + "\n";
-            batchCommands += "echo j | del /F ";                    // Delete the executeable
-            batchCommands += injectorDependency + "\n";
-            batchCommands += "echo j | del TerrariaInjectorUninstaller.bat";    // Delete this bat file
+                batchCommands += "@ECHO OFF\n";                         // Do not show any output
+                batchCommands += "ping 127.0.0.1 > nul\n";              // Wait approximately 4 seconds (so that the process is already terminated)
+                batchCommands += "echo j | del /F ";                    // Delete the executeable
+                batchCommands += exeFileName + "\n";
+                batchCommands += "echo j | del /F ";                    // Delete the executeable
+                batchCommands += injectorDependency + "\n";
+                batchCommands += "echo j | del TerrariaInjectorUninstaller.bat";    // Delete this bat file
 
-            File.WriteAllText("TerrariaInjectorUninstaller.bat", batchCommands);
+                File.WriteAllText("TerrariaInjectorUninstaller.bat", batchCommands);
 
-            Process.Start("TerrariaInjectorUninstaller.bat");
-            Environment.Exit(0);
+                Process.Start("TerrariaInjectorUninstaller.bat");
+                Environment.Exit(0);
+            }
         }
         private static Assembly DependencyResolveEventHandler(object sender, ResolveEventArgs args)
         {
@@ -215,7 +154,8 @@ namespace TerrariaInjector
             // Try to load by filename - split out the filename of the full assembly name
             // and append the base path of the original assembly (ie. look in the same dir)
             string filename = args.Name.Split(',')[0] + ".dll".ToLower();
-            string asmFile = Path.Combine(@".\", "Mods", "Libs", filename);
+            //string asmFile = Path.Combine(@".\", "Mods", "Libs", filename);
+            string asmFile = Path.Combine(@".\", filename);
             try
             {
                 return Assembly.LoadFrom(asmFile);
@@ -226,19 +166,41 @@ namespace TerrariaInjector
                 return null;
             }
         }
+        private static Assembly TDependencyResolveEventHandler(object sender, ResolveEventArgs sargs)
+        {
+            string resourceName = new AssemblyName(sargs.Name).Name + ".dll";
+            string text = Array.Find<string>(typeof(Program).Assembly.GetManifestResourceNames(), (string element) => element.EndsWith(resourceName));
+            if (text == null)
+            {
+                return null;
+            }
+            Assembly result;
+            using (Stream manifestResourceStream = Assembly.GetExecutingAssembly().GetManifestResourceStream(text))
+            {
+                byte[] array = new byte[manifestResourceStream.Length];
+                manifestResourceStream.Read(array, 0, array.Length);
+                result = Assembly.Load(array);
+            }
+            return result;
+        }
     }
-    
+
     [HarmonyPatch]
-    public class MainMenuPatch
+    class MainMenuPatch
     {
-        public static MethodBase TargetMethod()
+        static MethodBase TargetMethod()
         {
             return Program.game.GetType("Terraria.Main").GetMethod("DrawVersionNumber", BindingFlags.NonPublic | BindingFlags.Static);
         }
-        public static void Prefix()
+        static void Prefix()
         {
-            Program.game.GetType("Terraria.Main").GetField("versionNumber").SetValue(null, "v1.4.3.6 - Injected");
+            string add = $" - Mod count:";
+            string version = (string)Program.game.GetType("Terraria.Main").GetField("versionNumber").GetValue(null);
+            if (!version.Contains(add))
+            {
+                version += add + " " + Program.modCount;
+            }
+            Program.game.GetType("Terraria.Main").GetField("versionNumber").SetValue(null, version);
         }
     }
-    
 }
