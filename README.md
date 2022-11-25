@@ -4,7 +4,8 @@
 TerrariaInjector is a program to inject harmony patches in to Terraria.
 
 #### How to install?
-Simply put **TerrariaInjector.exe** into your terraria installation folder and run it. 
+Simply put **TerrariaInjector.exe** and download the latest 0harmney.dll from [here](https://github.com/pardeike/Harmony/releases/latest) (choose the one in the `net35` folder) into your terraria installation folder and run it. 
+
 Because of how it works, you will need to run the injector everytime you want to play with mods/patches.
 
 #### How to uninstall?
