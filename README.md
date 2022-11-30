@@ -24,3 +24,5 @@ In this step, it will simply look through "Terraria.exe" for any embeded dll fil
 
 #### How to create a patch/mod
 Basic knowledge of HarmonyLib is required. You also need to reference both Harmony(0Harmony.dll) and Terraria(Terraria.exe). In the ExampleMod folder there is a example of how you can write a mod. This one is also in the release.
+## (version 1.1.0 and up) Init method
+If you have some stuff to setup before the game starts, or just when the mod is loaded, then make one (or more) `public static void Init()` methods. They can't have any parameters.'

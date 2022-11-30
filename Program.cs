@@ -8,9 +8,9 @@ using System.Reflection;
 
 namespace TerrariaInjector
 {
-    class Program
+    public class Program
     {
-        internal static Assembly game;
+        public static Assembly game;
         internal static int modCount;
         static void Main(string[] args)
         {
@@ -85,6 +85,24 @@ namespace TerrariaInjector
                     Assembly _mod = Assembly.LoadFile(mod);
                     Logger.Info("Mod loaded: " + _mod.GetName());
                     harmony.PatchAll(_mod);
+                    var modTypes = _mod.GetTypes();
+                    Logger.Info($"Checking for \"Init\" method in {_mod.GetName().Name}...");
+                    foreach (var type in modTypes)
+                    {
+                        if(type.GetMethod("Init") != null)
+                        {
+                            try
+                            {
+                                Logger.Info($"Found and invoking Init method in {_mod.GetName().Name}...");
+                                type.GetMethod("Init").Invoke(new object(), null);
+                            }
+                            catch (Exception e)
+                            {
+                                Logger.Error("Failed to invoke Init method.", e);
+                            }
+                            
+                        }
+                    }
                 }
                 foreach (var method in harmony.GetPatchedMethods())
                 {
@@ -165,23 +183,6 @@ namespace TerrariaInjector
                 Logger.Error("Error trying to load Assembly", e);
                 return null;
             }
-        }
-        private static Assembly TDependencyResolveEventHandler(object sender, ResolveEventArgs sargs)
-        {
-            string resourceName = new AssemblyName(sargs.Name).Name + ".dll";
-            string text = Array.Find<string>(typeof(Program).Assembly.GetManifestResourceNames(), (string element) => element.EndsWith(resourceName));
-            if (text == null)
-            {
-                return null;
-            }
-            Assembly result;
-            using (Stream manifestResourceStream = Assembly.GetExecutingAssembly().GetManifestResourceStream(text))
-            {
-                byte[] array = new byte[manifestResourceStream.Length];
-                manifestResourceStream.Read(array, 0, array.Length);
-                result = Assembly.Load(array);
-            }
-            return result;
         }
     }
 
