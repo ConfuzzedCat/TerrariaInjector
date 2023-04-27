@@ -84,6 +84,7 @@ StyleCopReport.xml
 *.pgc
 *.pgd
 *.rsp
+!Extra/ModCompile/compileconfig.rsp
 *.sbr
 *.tlb
 *.tli

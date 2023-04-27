@@ -1,142 +1,215 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Reflection;
+using System.Text;
+using System.Threading;
 
-public static class Logger
+namespace Core
 {
-    public static string LogFilePath
+    public enum LogLevel
     {
-        get;
-        private set;
+        Debug,
+        Information,
+        Warning,
+        Error,
     }
-    public static int LogLevel
+
+    public sealed class Logger
     {
-        get;
-        set;
-    }
-    private static bool IsRunning
-    {
-        get;
-        set;
-    } = false;
-    private static StreamWriter LogWriter
-    {
-        get;
-        set;
-    }
-    private static string TimeFormat
-    {
-        get
+        public static bool LogToConsole = false;
+        public static bool LogErrorsToConsole = true;
+        public static bool HasErrors = false;
+        public static bool HasWarnings = false;
+        public static int BatchInterval = 1000;
+
+        public readonly string LogId;
+        public static FileInfo TargetLogFile { get; private set; }
+        public static DirectoryInfo TargetDirectory { get { return TargetLogFile?.Directory; } }
+
+        public static bool Listening { get; private set; }
+        private static readonly Timer Timer = new Timer(Tick);
+        private static readonly StringBuilder LogQueue = new StringBuilder();
+
+        public static EventHandler<LogMessageInfo> LogMessageAdded;
+
+        public Logger(Type t) : this(t.Name)
         {
-            return "yyyy-MM-dd HH:mm:ss.fff";
         }
-    }
-    private static string LogPath = Path.Combine(Directory.GetCurrentDirectory(), "InjectorLogs");
-    public static string Start(int level = 0)
-    {
-        if (!IsRunning)
+
+        public Logger(string logId)
         {
-            LogFilePath = Path.Combine(LogPath, $"log_{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss").Replace('\\', '-').Replace(' ', '-').Replace(':', '-')}.txt");
-            IsRunning = true;
-            LogLevel = level;
-            if (!Directory.Exists(LogPath))
-            {
-                Directory.CreateDirectory(LogPath);
-            }
-            if (File.Exists(LogFilePath))
-            {
-                Warn("Log file already existed!");
-                File.Delete(LogFilePath);
-                File.Create(LogFilePath).Close();
-            }
+            LogId = logId;
+        }
+
+        public static void Start(FileInfo targetLogFile = null, bool overwrite = true)
+        {
+            if (Listening)
+                return;
+
+            if (targetLogFile != null)
+                TargetLogFile = targetLogFile;
             else
             {
-                File.Create(LogFilePath).Close();
+                var assembly = new FileInfo(Assembly.GetExecutingAssembly().Location);
+                TargetLogFile = new FileInfo(Path.Combine(assembly.DirectoryName, Path.GetFileNameWithoutExtension(assembly.Name) + ".log"));
             }
-            LogWriter = File.AppendText(LogFilePath);
-            Info("Logging started.");
-            return LogFilePath;
+
+            if (overwrite && File.Exists(TargetLogFile.FullName))
+                File.Delete(TargetLogFile.FullName);
+
+            Listening = true;
+            VerifyTargetDirectory();
+            Timer.Change(BatchInterval, Timeout.Infinite); // A one-off tick event that is reset every time.
+
+            Log("Log started.");
         }
-        else
+
+        public static void Shutdown()
         {
-            return LogFilePath;
+            if (!Listening)
+                return;
+
+            Log("Log stopped.");
+            Listening = false;
+            Timer.Dispose();
+            Tick(null); // Flush.
         }
-    }
-    public static void Stop()
-    {
-        Info("Logging stopped.");
-        ForceWrite();
-        IsRunning = false;
-        LogWriter.Close();
+
+        private static void VerifyTargetDirectory()
+        {
+            if (TargetDirectory == null)
+                throw new DirectoryNotFoundException("Target logging directory not found.");
+
+            TargetDirectory.Refresh();
+            if (!TargetDirectory.Exists)
+                TargetDirectory.Create();
+        }
+
+        private static void Tick(object state)
+        {
+            try
+            {
+                string logMessage;
+                lock (LogQueue)
+                {
+                    logMessage = LogQueue.ToString();
+                    LogQueue.Length = 0;
+                }
+
+                if (string.IsNullOrEmpty(logMessage))
+                    return;
+
+                VerifyTargetDirectory(); // File may be deleted after initialization.
+                File.AppendAllText(TargetLogFile.FullName, logMessage);
+            }
+            finally
+            {
+                if (Listening)
+                    Timer.Change(BatchInterval, Timeout.Infinite); // Reset timer for next tick.
+            }
+        }
+
+        [Conditional("DEBUG")]
+        public void Debug(string message)
+        {
+            Log($"<{Assembly.GetCallingAssembly().GetName().Name}> " + message, LogLevel.Debug);
+        }
+
+        public void Info(string message)
+        {
+            Log($"<{Assembly.GetCallingAssembly().GetName().Name}> " + message, LogLevel.Information);
+        }
+
+        public void Warning(string message)
+        {
+            HasWarnings = true;
+            Log($"<{Assembly.GetCallingAssembly().GetName().Name}> " + message, LogLevel.Warning);
+        }
+
+        public void Error(string message, Exception exception = null)
+        {
+            HasErrors = true;
+            var list = new List<Exception>();
+
+            while (exception != null)
+            {
+                list.Add(exception);
+                exception = exception.InnerException;
+            }
+            //if (list.Count > 0)
+            //    exception = list[list.Count - 1];
+
+            Log($"<{Assembly.GetCallingAssembly().GetName().Name}> " + message, LogLevel.Error, list.LastOrDefault());
+
+
+            /*
+            do
+            {
+                Log($"<{Assembly.GetCallingAssembly().GetName().Name}> " + message, LogLevel.Error, exception);
+                exception = exception?.InnerException;
+            } while (exception != null);
+            */
+        }
+
+        public void Log(string message, LogLevel level = LogLevel.Information, Exception exception = null)
+        {
+            Log(message, LogId, level, exception);
+        }
+
+        public static void Log(string message, string logger = null, LogLevel level = LogLevel.Information, Exception exception = null)
+        {
+            if (!Listening)
+                throw new Exception("Logging has not been started.");
+
+            if (exception != null)
+                message += $"\r\n{exception.Message}\r\n{exception.StackTrace}";
+
+            var info = new LogMessageInfo(level, logger, message);
+            var msg = info.ToString();
+
+            lock (LogQueue)
+            {
+                LogQueue.AppendLine(msg);
+                if (LogToConsole || (LogErrorsToConsole && level >= LogLevel.Warning))
+                    Console.WriteLine(msg);
+            }
+
+            var evnt = LogMessageAdded;
+            evnt?.Invoke(null, info); // Block caller. evnt?.Invoke(this, info);
+        }
     }
 
-    public static void ForceWrite()
+    public sealed class LogMessageInfo : EventArgs
     {
-        LogWriter.Flush();
-    }
+        public readonly DateTime Timestamp;
+        public readonly string ThreadId;
+        public readonly LogLevel LogLevel;
+        public readonly string LogId;
+        public readonly string Message;
 
-    public static string Debug(string message)
-    {
-        string logFrom = Assembly.GetCallingAssembly().GetName().Name;
-        string time = DateTime.Now.ToString(TimeFormat);
-        string v = $"{time} [Debug] [{logFrom}] {message}";
-        if (0 >= LogLevel)
+        public LogMessageInfo(LogLevel level, string logId, string message)
         {
-            LogWriter.WriteLine(v);
-            Console.WriteLine(v);
+            Timestamp = DateTime.UtcNow;
+            var thread = Thread.CurrentThread;
+            ThreadId = string.IsNullOrEmpty(thread.Name) ? thread.ManagedThreadId.ToString() : thread.Name;
+            LogLevel = level;
+            LogId = logId;
+            Message = message;
         }
-        return v;
-    }
 
-    public static string Info(string message)
-    {
-        string logFrom = Assembly.GetCallingAssembly().GetName().Name;
-        string time = DateTime.Now.ToString(TimeFormat);
-        string v = $"{time} [Info ] [{logFrom}] {message}";
-        if (1 >= LogLevel)
-        {
-            LogWriter.WriteLine(v);
-            Console.WriteLine(v);
-        }
-        return v;
-    }
+        public bool IsInformation => LogLevel == LogLevel.Information;
+        public bool IsDebug => LogLevel == LogLevel.Debug;
+        public bool IsWarning => LogLevel == LogLevel.Warning;
+        public bool IsError => LogLevel == LogLevel.Error;
 
-    public static string Warn(string message)
-    {
-        string logFrom = Assembly.GetCallingAssembly().GetName().Name;
-        string time = DateTime.Now.ToString(TimeFormat);
-        string v = $"{time} [Warn ] [{logFrom}] {message}";
-        if (2 >= LogLevel)
+        public override string ToString()
         {
-            LogWriter.WriteLine(v);
-            Console.WriteLine(v);
+            var logId = string.IsNullOrEmpty(LogId) ? "" : $"[{LogId}]";
+            var level = IsInformation ? "" : $"[{LogLevel}]";
+            return $"[{Timestamp:yyyy/MM/dd HH:mm:ss.fff}][{ThreadId}]{logId}{level} {Message}";
         }
-        return v;
-    }
-
-    public static string Error(string message, Exception ex)
-    {
-        string logFrom = Assembly.GetCallingAssembly().GetName().Name;
-        string time = DateTime.Now.ToString(TimeFormat);
-        string v = $"{time} [Error] [{logFrom}] {message}\n{ex}";
-        if (3 >= LogLevel)
-        {
-            LogWriter.WriteLine(v);
-            Console.WriteLine(v);
-        }
-        return v;
-    }
-
-    public static string Fatal(string message, Exception ex)
-    {
-        string logFrom = Assembly.GetCallingAssembly().GetName().Name;
-        string time = DateTime.Now.ToString(TimeFormat);
-        string v = $"{time} [Fatal] [{logFrom}] {message}\n{ex}";
-        if (4 >= LogLevel)
-        {
-            LogWriter.WriteLine(v);
-            Console.WriteLine(v);
-        }
-        return v;
     }
 }
