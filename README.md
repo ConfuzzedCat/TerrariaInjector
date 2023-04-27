@@ -25,6 +25,9 @@ simple make a target file in the modfolder of the game, with the name of the gam
 
 ## Credits
 Thank you Deltaone for help with the OutOfMemomery bug and over all fixing and cleaning.
+
 Deltaone - https://github.com/deltaone
+
 Tiberiumfusion - TT2 & https://github.com/TiberiumFusion/TTPlugins
+
 Dougbenham - https://github.com/dougbenham/TerrariaPatcher
