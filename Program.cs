@@ -92,7 +92,10 @@ namespace TerrariaInjector
             foreach (var file in modDependencies)
             {
                 Logger.Info("Loading: " + file);
-                AppDomain.CurrentDomain.Load(Assembly.LoadFile(Path.GetFullPath(file)).GetName());
+                Assembly asm = Assembly.LoadFile(file);
+                Logger.Debug("Found assembly: " + asm.ToString()); 
+                Logger.Debug("AssemblyName: " + asm.GetName()); Logger.Debug("Found assembly: " + asm.ToString());
+                AppDomain.CurrentDomain.Load(asm.GetName());
             }
 
 
@@ -104,7 +107,7 @@ namespace TerrariaInjector
                 Logger.Info("Loading: " + file);
                 Assembly mod = Assembly.LoadFile(file);
                 modsAssemblies.Add(mod);
-                ModCount += 1;
+                ModCount++;
                 foreach (var type in mod.GetTypes())
                 {
                     try
@@ -182,17 +185,7 @@ namespace TerrariaInjector
             }
             if (gameAssemblyDef != null)
                 File.Move(targetPath + ".bak", targetPath);
-            if (isTerrariaTarget)
-            {
-                try
-                {
-                    ModCountLabel.Patch(game, harmony);
-                }
-                catch (Exception ex)
-                {
-                    Logger.Error("ModcountLabel failed to patch!", ex);
-                }
-            }
+            
             Logger.Debug("Assemblies:");
             Array.ForEach(AppDomain.CurrentDomain.GetAssemblies(), entry =>
             {
@@ -204,6 +197,18 @@ namespace TerrariaInjector
 
             foreach (var method in harmony.GetPatchedMethods())
                 Logger.Info($"Patched method: \"{method.Name}\"");
+
+            if (isTerrariaTarget)
+            {
+                try
+                {
+                    ModCountLabel.Patch(game, harmony);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error("ModcountLabel failed to patch!", ex);
+                }
+            }
 
             //Logger.Info("Writing patched game to file ...");
             //File.WriteAllBytes(targetPath + ".dump.exe", DumpAssembly(Game));
