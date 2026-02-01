@@ -44,7 +44,7 @@ namespace Core
             LogId = logId;
         }
 
-        public static void Start(FileInfo targetLogFile = null, bool overwrite = true)
+        public static void Start(FileInfo targetLogFile = null, bool overwrite = true, string logDirectory = null)
         {
             if (Listening)
                 return;
@@ -54,7 +54,8 @@ namespace Core
             else
             {
                 var assembly = new FileInfo(Assembly.GetExecutingAssembly().Location);
-                TargetLogFile = new FileInfo(Path.Combine(assembly.DirectoryName, Path.GetFileNameWithoutExtension(assembly.Name) + ".log"));
+                string logDir = string.IsNullOrEmpty(logDirectory) ? assembly.DirectoryName : logDirectory;
+                TargetLogFile = new FileInfo(Path.Combine(logDir, Path.GetFileNameWithoutExtension(assembly.Name) + ".log"));
             }
 
             if (overwrite && File.Exists(TargetLogFile.FullName))

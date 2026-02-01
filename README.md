@@ -14,6 +14,25 @@ It then loads the embedded dependencies from the game. After it will load the li
 The default Terraria save folder is then checked, and injects the path into a field. This is a workaround for the issue with the main class now being static. Which also means that TerrariaInjector doesn't support any other save paths.
 The patched game assembly is then invoked, starting the game.
 
+## Folder Structure
+
+By default, TerrariaInjector looks for mods in:
+- `Mods/` folder (original structure)
+
+With TerrariaModder, you can use a custom structure via config file:
+- `TerrariaModder/core/config.json` defines folder paths
+- Core DLL at `TerrariaModder/core/TerrariaModder.Core.dll`
+- Mods at `TerrariaModder/mods/`
+- Dependencies at `TerrariaModder/core/deps/`
+
+## Server Support
+
+TerrariaInjector automatically detects `TerrariaServer.exe` and skips UI-related patches.
+
+## Loading Blocked DLLs
+
+Uses `Assembly.UnsafeLoadFrom()` to load DLLs without requiring manual unblocking or `.exe.config` files. Downloaded DLLs from the internet work automatically.
+
 ## How to create a patch/mod
 Basic knowledge of HarmonyLib is required. You also need to reference both Harmony(0Harmony.dll) and Terraria(Terraria.exe).
 Each mod can have a Init(or Initialize) and a PrePatch method, which each get run at initialization and before patching the game.

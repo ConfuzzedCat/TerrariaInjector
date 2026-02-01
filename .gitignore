@@ -399,3 +399,12 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Local dev files
+.claude/
+.cursor/
+.idea/
+.vscode/
+*.md
+!README.md
+docs/
