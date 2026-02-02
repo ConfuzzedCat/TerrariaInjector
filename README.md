@@ -51,7 +51,7 @@ simple make a target file in the modfolder of the game, with the name of the gam
 ## Credits
 Thank you Deltaone for help with the OutOfMemomery bug and over all fixing and cleaning.
 
-Inidar - <TBD>
+Inidar - [Nexusmods](https://www.nexusmods.com/profile/Inidar), <DiscordServer, TBD>
 
 Deltaone - https://github.com/deltaone
 
