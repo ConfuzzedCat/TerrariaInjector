@@ -8,7 +8,6 @@ using System.Linq;
 using System.Reflection;
 using System.Resources;
 using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
 using System.Threading;
 
 [assembly: AssemblyTitle("TerrariaInjector")]
@@ -41,7 +40,9 @@ namespace TerrariaInjector
                 {
                     logDir = Path.Combine(GM.AssemblyFolder, config.RootFolder, config.LogsFolder);
                     if (!Directory.Exists(logDir))
+                    {
                         Directory.CreateDirectory(logDir);
+                    }
                 }
 
                 Logger.Start(logDirectory: logDir);
@@ -57,14 +58,19 @@ namespace TerrariaInjector
                 if (Logger.HasErrors)
                 {
                     Console.WriteLine("\nAttention! Errors found, look into the logs ...");
-                    try { GM.Wait(); } catch { }
+                    try
+                    {
+                        GM.Wait();
+                    }
+                    catch
+                    {
+                    }
                 }
-
             }
         }
     }
 
-    
+
     public class InjectorConfig
     {
         public string RootFolder { get; set; } = "Mods";
@@ -75,44 +81,70 @@ namespace TerrariaInjector
 
         public static InjectorConfig Load(string baseDir)
         {
-            string path1 = Path.Combine(baseDir, "TerrariaModder", "core", "config.json");
-            string path2 = Path.Combine(baseDir, "Mods", "config.json");
+            string path1 = Path.Combine(baseDir, "TerrariaModder", "core", "config.ini");
+            string path2 = Path.Combine(baseDir, "Mods", "config.ini");
 
             foreach (var path in new[] { path1, path2 })
             {
-                if (File.Exists(path))
+                if (!File.Exists(path))
                 {
-                    try
-                    {
-                        return ParseConfig(File.ReadAllText(path));
-                    }
-                    catch
-                    {
-                        // Fall through to defaults if parse fails
-                    }
+                    continue;
+                }
+
+                try
+                {
+                    return ParseIni(File.ReadAllLines(path));
+                }
+                catch
+                {
+                    // Fall through to defaults if parse fails
                 }
             }
             return new InjectorConfig();
         }
 
-        private static InjectorConfig ParseConfig(string json)
+        private static InjectorConfig ParseIni(string[] lines)
         {
             var config = new InjectorConfig();
 
-            var rootMatch = Regex.Match(json, @"""rootFolder""\s*:\s*""([^""]*)""", RegexOptions.IgnoreCase);
-            if (rootMatch.Success) config.RootFolder = rootMatch.Groups[1].Value;
+            foreach (var rawLine in lines)
+            {
+                var line = rawLine.Trim();
 
-            var coreMatch = Regex.Match(json, @"""coreFolder""\s*:\s*""([^""]*)""", RegexOptions.IgnoreCase);
-            if (coreMatch.Success) config.CoreFolder = coreMatch.Groups[1].Value;
+                // Skip empty lines, comments, and section headers
+                if (string.IsNullOrEmpty(line) || line.StartsWith(";") || line.StartsWith("#") || line.StartsWith("["))
+                {
+                    continue;
+                }
 
-            var depsMatch = Regex.Match(json, @"""depsFolder""\s*:\s*""([^""]*)""", RegexOptions.IgnoreCase);
-            if (depsMatch.Success) config.DepsFolder = depsMatch.Groups[1].Value;
+                var eqIndex = line.IndexOf('=');
+                if (eqIndex <= 0)
+                {
+                    continue;
+                }
 
-            var modsMatch = Regex.Match(json, @"""modsFolder""\s*:\s*""([^""]*)""", RegexOptions.IgnoreCase);
-            if (modsMatch.Success) config.ModsFolder = modsMatch.Groups[1].Value;
+                var key = line.Substring(0, eqIndex).Trim().ToLowerInvariant();
+                var value = line.Substring(eqIndex + 1).Trim();
 
-            var logsMatch = Regex.Match(json, @"""logsFolder""\s*:\s*""([^""]*)""", RegexOptions.IgnoreCase);
-            if (logsMatch.Success) config.LogsFolder = logsMatch.Groups[1].Value;
+                switch (key)
+                {
+                    case "rootfolder":
+                        config.RootFolder = value;
+                        break;
+                    case "corefolder":
+                        config.CoreFolder = value;
+                        break;
+                    case "depsfolder":
+                        config.DepsFolder = value;
+                        break;
+                    case "modsfolder":
+                        config.ModsFolder = value;
+                        break;
+                    case "logsfolder":
+                        config.LogsFolder = value;
+                        break;
+                }
+            }
 
             return config;
         }
@@ -145,26 +177,38 @@ namespace TerrariaInjector
                 : Path.Combine(RootDir, Config.ModsFolder);
 
             if (!Directory.Exists(RootDir))
+            {
                 Directory.CreateDirectory(RootDir);
+            }
             if (!Directory.Exists(DepsDir))
+            {
                 Directory.CreateDirectory(DepsDir);
+            }
             if (!string.IsNullOrEmpty(Config.ModsFolder) && !Directory.Exists(ModsDir))
+            {
                 Directory.CreateDirectory(ModsDir);
+            }
 
 
             string targetPath = null;
             var targets = new List<string>(Targets);
             string targetFile = Path.Combine(RootDir, "target");
             if (File.Exists(targetFile))
+            {
                 targets.Insert(0, File.ReadAllText(targetFile).Trim());
+            }
             foreach (var entry in targets.Where(entry => !string.IsNullOrEmpty(entry)))
             {
                 targetPath = Path.Combine(AssemblyFolder, entry);
                 if (File.Exists(targetPath))
+                {
                     break;
+                }
             }
             if (string.IsNullOrEmpty(targetPath) || !File.Exists(targetPath))
+            {
                 throw new Exception($"Target assembly not found! {targetPath}");
+            }
 
             bool isServer = targetPath.ToLower().EndsWith("terrariaserver.exe");
             Logger.Info($"Target: {targetPath} (Server mode: {isServer})");
@@ -188,9 +232,13 @@ namespace TerrariaInjector
 
             var modPaths = new List<string>();
             if (Directory.Exists(CoreDir))
+            {
                 modPaths.AddRange(Directory.GetFiles(CoreDir, "*.dll", SearchOption.TopDirectoryOnly));
+            }
             if (ModsDir != CoreDir && Directory.Exists(ModsDir))
+            {
                 modPaths.AddRange(Directory.GetFiles(ModsDir, "*.dll", SearchOption.AllDirectories));
+            }
 
             Logger.Info("Loading mods:");
             foreach (var file in modPaths)
@@ -230,7 +278,9 @@ namespace TerrariaInjector
             Assembly game;
             Logger.Info($"Loading game assembly: {targetPath}");
             if (gameAssemblyDef == null)
-                game = Assembly.UnsafeLoadFrom(targetPath); //game = Assembly.Load(File.ReadAllBytes(targetPath));
+            {
+                game = Assembly.UnsafeLoadFrom(targetPath);
+            }
             else
             {
                 using (MemoryStream memoryStream = new MemoryStream())
@@ -247,23 +297,29 @@ namespace TerrariaInjector
                 string savePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "My Games", "Terraria");
                 var savePathField = game.GetType("Terraria.Program")?.GetField("SavePath");
                 if (savePathField != null)
+                {
                     savePathField.SetValue(null, savePath);
+                }
                 isTerrariaTarget = true;
             }
 
 
             Logger.Info("Loading game dependencies ...");
             foreach (var file in game.GetManifestResourceNames())
+            {
                 if (file.Contains(".dll"))
                 {
                     Logger.Info("Loading: " + file);
                     Stream input = game.GetManifestResourceStream(file);
                     Assembly.Load(ReadStreamAssembly(input));
                 }
+            }
 
 
             if (gameAssemblyDef != null)
+            {
                 File.Move(targetPath, targetPath + ".bak");
+            }
             Harmony harmony = new Harmony("com.github.confuzzedcat.terraria.terrariainjector");
             foreach (var mod in modsAssemblies)
             {
@@ -278,7 +334,9 @@ namespace TerrariaInjector
                 }
             }
             if (gameAssemblyDef != null)
+            {
                 File.Move(targetPath + ".bak", targetPath);
+            }
             
             Logger.Debug("Assemblies:");
             Array.ForEach(AppDomain.CurrentDomain.GetAssemblies(), entry =>
@@ -357,7 +415,9 @@ namespace TerrariaInjector
             // check for assemblies already loaded
             Assembly assembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.FullName == args.Name);
             if (assembly != null)
+            {
                 return assembly;
+            }
 
             // Try to load by filename - split out the filename of the full assembly name
             // and append the base path of the original assembly (ie. look in the same dir)
@@ -368,7 +428,13 @@ namespace TerrariaInjector
             // Load config on-demand if not yet loaded
             if (Config == null)
             {
-                try { Config = InjectorConfig.Load(AssemblyFolder); } catch { }
+                try
+                {
+                    Config = InjectorConfig.Load(AssemblyFolder);
+                }
+                catch
+                {
+                }
             }
 
             if (Config != null)
@@ -379,7 +445,10 @@ namespace TerrariaInjector
 
                 searchPaths.Add(rootDir);
                 searchPaths.Add(depsDir);
-                if (modsDir != rootDir) searchPaths.Add(modsDir);
+                if (modsDir != rootDir)
+                {
+                    searchPaths.Add(modsDir);
+                }
             }
 
             // Always include original paths as fallback
@@ -389,7 +458,11 @@ namespace TerrariaInjector
             string asmFile = null;
             foreach (var searchPath in searchPaths)
             {
-                if (!Directory.Exists(searchPath)) continue;
+                if (!Directory.Exists(searchPath))
+                {
+                    continue;
+                }
+
                 var candidate = Path.Combine(searchPath, filename);
                 if (File.Exists(candidate))
                 {
@@ -399,7 +472,9 @@ namespace TerrariaInjector
             }
 
             if (asmFile == null)
+            {
                 return null;
+            }
 
             try
             {

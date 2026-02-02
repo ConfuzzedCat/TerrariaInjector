@@ -47,10 +47,14 @@ namespace Core
         public static void Start(FileInfo targetLogFile = null, bool overwrite = true, string logDirectory = null)
         {
             if (Listening)
+            {
                 return;
+            }
 
             if (targetLogFile != null)
+            {
                 TargetLogFile = targetLogFile;
+            }
             else
             {
                 var assembly = new FileInfo(Assembly.GetExecutingAssembly().Location);
@@ -59,7 +63,9 @@ namespace Core
             }
 
             if (overwrite && File.Exists(TargetLogFile.FullName))
+            {
                 File.Delete(TargetLogFile.FullName);
+            }
 
             Listening = true;
             VerifyTargetDirectory();
@@ -71,7 +77,9 @@ namespace Core
         public static void Shutdown()
         {
             if (!Listening)
+            {
                 return;
+            }
 
             Log("Log stopped.");
             Listening = false;
@@ -82,11 +90,15 @@ namespace Core
         private static void VerifyTargetDirectory()
         {
             if (TargetDirectory == null)
+            {
                 throw new DirectoryNotFoundException("Target logging directory not found.");
+            }
 
             TargetDirectory.Refresh();
             if (!TargetDirectory.Exists)
+            {
                 TargetDirectory.Create();
+            }
         }
 
         private static void Tick(object state)
@@ -101,7 +113,9 @@ namespace Core
                 }
 
                 if (string.IsNullOrEmpty(logMessage))
+                {
                     return;
+                }
 
                 VerifyTargetDirectory(); // File may be deleted after initialization.
                 File.AppendAllText(TargetLogFile.FullName, logMessage);
@@ -109,7 +123,9 @@ namespace Core
             finally
             {
                 if (Listening)
+                {
                     Timer.Change(BatchInterval, Timeout.Infinite); // Reset timer for next tick.
+                }
             }
         }
 
@@ -163,10 +179,14 @@ namespace Core
         public static void Log(string message, string logger = null, LogLevel level = LogLevel.Information, Exception exception = null)
         {
             if (!Listening)
+            {
                 throw new Exception("Logging has not been started.");
+            }
 
             if (exception != null)
+            {
                 message += $"\r\n{exception.Message}\r\n{exception.StackTrace}";
+            }
 
             var info = new LogMessageInfo(level, logger, message);
             var msg = info.ToString();

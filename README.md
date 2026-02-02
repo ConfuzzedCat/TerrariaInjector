@@ -19,11 +19,17 @@ The patched game assembly is then invoked, starting the game.
 By default, TerrariaInjector looks for mods in:
 - `Mods/` folder (original structure)
 
-With TerrariaModder, you can use a custom structure via config file:
-- `TerrariaModder/core/config.json` defines folder paths
-- Core DLL at `TerrariaModder/core/TerrariaModder.Core.dll`
-- Mods at `TerrariaModder/mods/`
-- Dependencies at `TerrariaModder/core/deps/`
+You can also use a custom folder structure via INI config file:
+- `TerrariaModder/core/config.ini` or `Mods/config.ini` defines folder paths
+- Example config:
+```ini
+[Paths]
+rootFolder=TerrariaModder
+coreFolder=core
+depsFolder=core/deps
+modsFolder=mods
+logsFolder=core/logs
+```
 
 ## Server Support
 

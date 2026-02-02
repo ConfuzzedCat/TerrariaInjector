@@ -24,7 +24,8 @@ namespace TerrariaInjector
 		{
 			string version = (string)_game.GetType("Terraria.Main").GetField("versionNumber").GetValue(null);
 
-			if (!version.Contains("Modded!")) {
+			if (!version.Contains("Modded!"))
+			{
 				version += " - Modded! (" + GM.ModCount + ")";
 				_game.GetType("Terraria.Main").GetField("versionNumber").SetValue(null, version);
 			}
