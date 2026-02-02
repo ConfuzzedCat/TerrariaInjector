@@ -1,4 +1,4 @@
-![alt text](https://github.com/ConfuzzedCat/TerrariaInjector/blob/master/TerrariaInjector_Long.png?raw=true)
+![alt text](./TerrariaInjector_Long.png?raw=true)
 # TerrariaInjector
 #### What is it?
 TerrariaInjector is a program to inject harmony patches in to Terraria.
@@ -50,6 +50,7 @@ simple make a target file in the modfolder of the game, with the name of the gam
 
 ## Credits
 Thank you Deltaone for help with the OutOfMemomery bug and over all fixing and cleaning.
+Thank you Inidar for server and config support. 
 
 Inidar - [Nexusmods](https://www.nexusmods.com/profile/Inidar), <DiscordServer, TBD>
 
