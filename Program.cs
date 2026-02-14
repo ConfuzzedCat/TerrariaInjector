@@ -362,8 +362,11 @@ namespace TerrariaInjector
                 }
             }
 
-            //Logger.Info("Writing patched game to file ...");
-            //File.WriteAllBytes(targetPath + ".dump.exe", DumpAssembly(Game));
+            // Register lifecycle hooks (Terraria client only)
+            if (isTerrariaTarget && !isServer)
+            {
+                LifecycleHooks.Register(game, harmony, modsAssemblies);
+            }
 
             Logger.Info("Invoke game entry point ...");
             Thread.Sleep(1000);

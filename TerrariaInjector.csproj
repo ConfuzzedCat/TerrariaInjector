@@ -51,6 +51,7 @@
     <None Include="Extra\ModCompile\compileconfig.rsp" />
     <None Include="Extra\ModHelpers.cs" />
     <None Include="Extra\template.cs" />
+    <Compile Include="LifecycleHooks.cs" />
     <Compile Include="Logger.cs" />
     <Compile Include="ModCountLabel.cs" />
     <Compile Include="Program.cs" />
