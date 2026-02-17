@@ -52,7 +52,7 @@ simple make a target file in the modfolder of the game, with the name of the gam
 Thank you Deltaone for help with the OutOfMemomery bug and over all fixing and cleaning.
 Thank you Inidar for server and config support. 
 
-Inidar - [Nexusmods](https://www.nexusmods.com/profile/Inidar), <DiscordServer, TBD>
+Inidar - [Nexusmods](https://www.nexusmods.com/profile/Inidar), [Inidar Academy](https://discord.gg/bCkhsSdwSY), [TerrariaModder](https://discord.gg/VvVD5EeYsK)
 
 Deltaone - https://github.com/deltaone
 
