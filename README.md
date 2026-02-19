@@ -1,5 +1,15 @@
 ![alt text](./TerrariaInjector_Long.png?raw=true)
 # TerrariaInjector
+
+
+--------------------------------------------------------------------------------------------
+
+## For TerrariaModder users
+Don't download the version in the releases, instead use the supplied version from inidar
+[https://github.com/Inidar1/terraria-modder](https://github.com/Inidar1/terraria-modder)
+
+--------------------------------------------------------------------------------------------
+
 #### What is it?
 TerrariaInjector is a program to inject harmony patches in to Terraria.
 Though it should work with any XNA/.net Applications.
