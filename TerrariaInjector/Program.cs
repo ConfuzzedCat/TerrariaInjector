@@ -1,41 +1,53 @@
-﻿using Core;
-using HarmonyLib;
+﻿using HarmonyLib;
 using Mono.Cecil;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.Design;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Resources;
 using System.Runtime.InteropServices;
 using System.Threading;
+using TerrariaInjector.Core.Injecting;
+using TerrariaInjector.Core.Logging;
+using TerrariaInjector.Extensions;
 
 [assembly: AssemblyTitle("TerrariaInjector")]
 [assembly: AssemblyProduct("TerrariaInjector")]
-[assembly: AssemblyCopyright("Copyright (c) 2023 / Confuzzedcat, #d1 & Co.")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.2.0")]
-[assembly: AssemblyFileVersion("1.2.0")]
+[assembly: AssemblyVersion("2.0.0")]
+[assembly: AssemblyFileVersion("2.0.0")]
 [assembly: NeutralResourcesLanguage("en")]
 [assembly: CLSCompliant(false)]
-//[assembly: Guid("7A8659F1-61B8-4A3E-9201-000020230303")]
 namespace TerrariaInjector
 {
     public static class Program
     {
+        public static ServiceContainer ServiceContainer { get; private set; }
+        private static ILogger _logger;
+
+        private static ServiceContainer CreateServiceContainer()
+        {
+            return new ServiceContainer()
+                    .AddLogger<ILogger>();
+        }
+        
         [STAThread]
         public static void Main(string[] args)
         {
+            ServiceContainer = CreateServiceContainer();
             Console.Title = "TerrariaInjector";
             AppDomain.CurrentDomain.AssemblyResolve += GM.DependencyResolveEventHandler;
-
+            AppDomain.CurrentDomain.ProcessExit += Teardown;
             try
             {
-                Logger.LogToConsole = true;
+                LoggerOptions options = LoggerOptions.Default;
+                
 
                 // Load config early to determine log directory
                 var config = InjectorConfig.Load(GM.AssemblyFolder);
-                string logDir = null;
+                string logDir = string.Empty;
                 if (!string.IsNullOrEmpty(config.LogsFolder))
                 {
                     logDir = Path.Combine(GM.AssemblyFolder, config.RootFolder, config.LogsFolder);
@@ -45,28 +57,35 @@ namespace TerrariaInjector
                     }
                 }
 
-                Logger.Start(logDirectory: logDir);
+                options.LogFile =
+                    new FileInfo(Path.Combine(logDir, Path.GetFileNameWithoutExtension(Assembly.GetExecutingAssembly().Location) + ".log"));
+                _logger = ServiceContainer.GetLoggerService(nameof(Program));
+                //_logger.Start(logDirectory: logDir);
                 GM.Inject(args);
             }
             catch (Exception ex)
             {
-                GM.Logger.Error("Fatal error!", ex);
+                _logger.LogError("Fatal error!", ex);
             }
             finally
             {
-                Logger.Shutdown();
-                if (Logger.HasErrors)
+                if (_logger.HasErrors)
                 {
                     Console.WriteLine("\nAttention! Errors found, look into the logs ...");
                     try
                     {
-                        GM.Wait();
                     }
                     catch
                     {
+                        GM.Wait();
                     }
                 }
             }
+        }
+
+        private static void Teardown(object sender, EventArgs e)
+        {
+            ServiceContainer.Dispose();
         }
     }
 
@@ -79,7 +98,7 @@ namespace TerrariaInjector
         public string ModsFolder { get; set; } = "";
         public string LogsFolder { get; set; } = "";
 
-        public static InjectorConfig Load(string baseDir)
+        public static InjectorConfig Load(string baseDir = "")
         {
             string path1 = Path.Combine(baseDir, "TerrariaModder", "core", "config.ini");
             string path2 = Path.Combine(baseDir, "Mods", "config.ini");
@@ -154,7 +173,7 @@ namespace TerrariaInjector
     {
         public static readonly string AssemblyFile = Assembly.GetExecutingAssembly().Location;
         public static readonly string AssemblyFolder = Path.GetFullPath(Path.GetDirectoryName(AssemblyFile) + Path.DirectorySeparatorChar);
-        public static readonly Core.Logger Logger = new Core.Logger("GM");
+        public static ILogger Logger;
         public static void Wait() => Console.ReadKey(true);
         public static readonly string[] Targets = { "Stardew Valley.exe", "Terraria.exe", "TerrariaServer.exe" };
         public static int ModCount = 0;
@@ -166,6 +185,11 @@ namespace TerrariaInjector
 
         public static void Inject(string[] args)
         {
+            
+            Logger = Program.ServiceContainer.GetLoggerService("GM", () => new LoggerOptions()
+            {
+                LogFile = new FileInfo("GM.log")
+            });
             Config = InjectorConfig.Load(AssemblyFolder);
             RootDir = Path.Combine(AssemblyFolder, Config.RootFolder);
             CoreDir = string.IsNullOrEmpty(Config.CoreFolder)
@@ -211,17 +235,17 @@ namespace TerrariaInjector
             }
 
             bool isServer = targetPath.ToLower().EndsWith("terrariaserver.exe");
-            Logger.Info($"Target: {targetPath} (Server mode: {isServer})");
+            Logger.LogInformation($"Target: {targetPath} (Server mode: {isServer})");
 
 
-            Logger.Info("Loading dependencies from: " + DepsDir);
+            Logger.LogInformation("Loading dependencies from: " + DepsDir);
             if (Directory.Exists(DepsDir))
             {
                 foreach (var file in Directory.GetFiles(DepsDir, "*.dll", SearchOption.AllDirectories))
                 {
-                    Logger.Info("Loading dependency: " + file);
+                    Logger.LogInformation($"Loading dependency: {file}");
                     Assembly asm = Assembly.UnsafeLoadFrom(file);
-                    Logger.Debug("Found assembly: " + asm.ToString());
+                    Logger.LogDebug($"Found assembly: {asm}");
                     AppDomain.CurrentDomain.Load(asm.GetName());
                 }
             }
@@ -240,10 +264,10 @@ namespace TerrariaInjector
                 modPaths.AddRange(Directory.GetFiles(ModsDir, "*.dll", SearchOption.AllDirectories));
             }
 
-            Logger.Info("Loading mods:");
+            Logger.LogInformation("Loading mods:");
             foreach (var file in modPaths)
             {
-                Logger.Info("Loading: " + file);
+                Logger.LogInformation("Loading: " + file);
                 Assembly mod = Assembly.UnsafeLoadFrom(file);
                 modsAssemblies.Add(mod);
                 ModCount++;
@@ -260,7 +284,7 @@ namespace TerrariaInjector
                     }
                     if (type.GetMethod("PrePatch") != null && gameAssemblyDef == null)
                     {
-                        Logger.Info($"Loading game assembly definition: {targetPath}");
+                        Logger.LogInformation($"Loading game assembly definition: {targetPath}");
                         gameAssemblyDef = AssemblyDefinition.ReadAssembly(targetPath, new ReaderParameters() { ReadWrite = true, InMemory = true });
                     }
                     try
@@ -276,7 +300,7 @@ namespace TerrariaInjector
 
 
             Assembly game;
-            Logger.Info($"Loading game assembly: {targetPath}");
+            Logger.LogInformation($"Loading game assembly: {targetPath}");
             if (gameAssemblyDef == null)
             {
                 game = Assembly.UnsafeLoadFrom(targetPath);
@@ -304,12 +328,12 @@ namespace TerrariaInjector
             }
 
 
-            Logger.Info("Loading game dependencies ...");
+            Logger.LogInformation("Loading game dependencies ...");
             foreach (var file in game.GetManifestResourceNames())
             {
                 if (file.Contains(".dll"))
                 {
-                    Logger.Info("Loading: " + file);
+                    Logger.LogInformation("Loading: " + file);
                     Stream input = game.GetManifestResourceStream(file);
                     Assembly.Load(ReadStreamAssembly(input));
                 }
@@ -323,14 +347,14 @@ namespace TerrariaInjector
             Harmony harmony = new Harmony("com.github.confuzzedcat.terraria.terrariainjector");
             foreach (var mod in modsAssemblies)
             {
-                Logger.Info("Harmony.PatchAll() mod: " + mod.GetName().Name);
+                Logger.LogInformation("Harmony.PatchAll() mod: " + mod.GetName().Name);
                 try
                 {
                     harmony.PatchAll(mod);
                 }
                 catch (Exception ex)
                 {
-                    Logger.Error($"Harmony.PatchAll() failed on {mod.GetName().Name}!", ex);
+                    Logger.LogError($"Harmony.PatchAll() failed on {mod.GetName().Name}!", ex);
                 }
             }
             if (gameAssemblyDef != null)
@@ -338,17 +362,17 @@ namespace TerrariaInjector
                 File.Move(targetPath + ".bak", targetPath);
             }
             
-            Logger.Debug("Assemblies:");
+            Logger.LogDebug("Assemblies:");
             Array.ForEach(AppDomain.CurrentDomain.GetAssemblies(), entry =>
             {
-                Logger.Debug($"Loaded: {entry.FullName}");
+                Logger.LogDebug($"Loaded: {entry.FullName}");
                 if (entry.FullName.IndexOf("terraria", StringComparison.CurrentCultureIgnoreCase) >= 0)
-                    Logger.Debug($"        {entry.CodeBase}");
+                    Logger.LogDebug($"\t{entry.CodeBase}");
             });
 
 
             foreach (var method in harmony.GetPatchedMethods())
-                Logger.Info($"Patched method: \"{method.Name}\"");
+                Logger.LogInformation($"Patched method: \"{method.Name}\"");
 
             if (isTerrariaTarget && !isServer)
             {
@@ -358,7 +382,7 @@ namespace TerrariaInjector
                 }
                 catch (Exception ex)
                 {
-                    Logger.Error("ModcountLabel failed to patch!", ex);
+                    Logger.LogError("ModcountLabel failed to patch!", ex);
                 }
             }
 
@@ -368,7 +392,7 @@ namespace TerrariaInjector
                 LifecycleHooks.Register(game, harmony, modsAssemblies);
             }
 
-            Logger.Info("Invoke game entry point ...");
+            Logger.LogInformation("Invoke game entry point ...");
             Thread.Sleep(1000);
             game.EntryPoint.Invoke(null, new object[] { args });
         }
@@ -383,7 +407,7 @@ namespace TerrariaInjector
             }
             catch (Exception ex)
             {
-                Logger.Error($"DumpAssembly() failed on {assembly.GetName().Name}!", ex);
+                Logger.LogError($"DumpAssembly() failed on {assembly.GetName().Name}!", ex);
                 return null;
             }
         }

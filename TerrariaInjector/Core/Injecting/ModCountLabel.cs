@@ -1,7 +1,7 @@
-﻿using HarmonyLib;
-using System.Reflection;
+﻿using System.Reflection;
+using HarmonyLib;
 
-namespace TerrariaInjector
+namespace TerrariaInjector.Core.Injecting
 {
     public class ModCountLabel
 	{
@@ -14,7 +14,7 @@ namespace TerrariaInjector
 		
 		public static void Initialize()
 		{
-			GM.Logger.Info(MethodBase.GetCurrentMethod().DeclaringType.Name + " initialized!");
+			GM.Logger.LogInformation(MethodBase.GetCurrentMethod().DeclaringType.Name + " initialized!");
 		}
 		static MethodBase TargetMethod()
 		{

@@ -9,10 +9,11 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>TerrariaInjector</RootNamespace>
     <AssemblyName>TerrariaInjector</AssemblyName>
-    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.8.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <ApplicationIcon>TerrariaInjector.ico</ApplicationIcon>
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -56,13 +57,23 @@
     <Reference Include="System.Data" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Constants.cs" />
+    <Compile Include="Core\Injecting\Injector.cs" />
+    <Compile Include="Core\Injecting\LifecycleHooks.cs" />
+    <Compile Include="Core\Injecting\ModCountLabel.cs" />
+    <Compile Include="Core\Logging\LoggerOptions.cs" />
+    <Compile Include="Core\Logging\Logger.cs" />
+    <Compile Include="Core\Logging\LogMessage.cs" />
+    <Compile Include="Utils\CallerArgumentExpressionAttribute.cs" />
+    <Compile Include="Utils\Guard.cs" />
     <None Include="Extra\ModCompile\build.bat" />
     <None Include="Extra\ModCompile\compileconfig.rsp" />
     <None Include="Extra\ModHelpers.cs" />
     <None Include="Extra\template.cs" />
-    <Compile Include="LifecycleHooks.cs" />
-    <Compile Include="Logger.cs" />
-    <Compile Include="ModCountLabel.cs" />
+    <Compile Include="Core\Logging\ILogger.cs" />
+    <Compile Include="Core\Logging\LoggerImpl.cs" />
+    <Compile Include="Core\Logging\LogLevel.cs" />
+    <Compile Include="Extensions\ServiceExtensions.cs" />
     <Compile Include="Program.cs" />
     <None Include="packages.config" />
   </ItemGroup>

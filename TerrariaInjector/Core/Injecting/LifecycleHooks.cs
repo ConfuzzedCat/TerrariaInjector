@@ -1,10 +1,11 @@
-using Core;
-using HarmonyLib;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using HarmonyLib;
+using TerrariaInjector.Core.Logging;
+using TerrariaInjector.Extensions;
 
-namespace TerrariaInjector
+namespace TerrariaInjector.Core.Injecting
 {
     /// <summary>
     /// Registers Harmony patches on Terraria's XNA lifecycle methods and dispatches
@@ -18,7 +19,7 @@ namespace TerrariaInjector
     /// </summary>
     public static class LifecycleHooks
     {
-        private static readonly Logger Logger = new Logger("Lifecycle");
+        private static readonly ILogger Logger = Program.ServiceContainer.GetLoggerService(nameof(LifecycleHooks));
 
         private static readonly List<MethodInfo> _onGameReady = new List<MethodInfo>();
         private static readonly List<MethodInfo> _onContentLoaded = new List<MethodInfo>();
@@ -40,12 +41,12 @@ namespace TerrariaInjector
 
             int total = _onGameReady.Count + _onContentLoaded.Count +
                         _onFirstUpdate.Count + _onShutdown.Count;
-            Logger.Info($"Registering hooks ({total} method(s) found across {mods.Count} mod(s))");
+            Logger.LogInformation($"Registering hooks ({total} method(s) found across {mods.Count} mod(s))");
 
             var mainType = game.GetType("Terraria.Main");
             if (mainType == null)
             {
-                Logger.Error("Terraria.Main not found — lifecycle hooks not registered");
+                Logger.LogError("Terraria.Main not found — lifecycle hooks not registered", new NullReferenceException("type of 'Terraria.Main' was null"));
                 return;
             }
 
@@ -76,7 +77,7 @@ namespace TerrariaInjector
             var target = targetType.GetMethod(methodName, flags);
             if (target == null)
             {
-                Logger.Warning($"Method not found: Main.{methodName} — hook skipped");
+                Logger.LogWarning($"Method not found: Main.{methodName} — hook skipped");
                 return;
             }
 
@@ -92,11 +93,11 @@ namespace TerrariaInjector
                     harmony.Patch(target, postfix: new HarmonyMethod(callback));
                     break;
                 default:
-                    Logger.Warning($"Unknown patch type '{patchType}' for Main.{methodName} — hook skipped");
+                    Logger.LogWarning($"Unknown patch type '{patchType}' for Main.{methodName} — hook skipped");
                     return;
             }
 
-            Logger.Info($"Hooked Main.{methodName} ({patchType})");
+            Logger.LogInformation($"Hooked Main.{methodName} ({patchType})");
         }
 
         private static void DiscoverMethods(List<Assembly> mods)
@@ -137,7 +138,7 @@ namespace TerrariaInjector
                         if (method != null)
                         {
                             kvp.Value.Add(method);
-                            Logger.Info($"Found {kvp.Key}() in {type.FullName}");
+                            Logger.LogInformation($"Found {kvp.Key}() in {type.FullName}");
                         }
                     }
                 }
@@ -153,7 +154,7 @@ namespace TerrariaInjector
                 return;
             }
             _gameReadyFired = true;
-            Logger.Info("OnGameReady fired");
+            Logger.LogInformation("OnGameReady fired");
             Dispatch(_onGameReady, "OnGameReady");
         }
 
@@ -164,7 +165,7 @@ namespace TerrariaInjector
                 return;
             }
             _contentLoadedFired = true;
-            Logger.Info("OnContentLoaded fired");
+            Logger.LogInformation("OnContentLoaded fired");
             Dispatch(_onContentLoaded, "OnContentLoaded");
         }
 
@@ -175,7 +176,7 @@ namespace TerrariaInjector
                 return;
             }
             _firstUpdateFired = true;
-            Logger.Info("OnFirstUpdate fired");
+            Logger.LogInformation("OnFirstUpdate fired");
             Dispatch(_onFirstUpdate, "OnFirstUpdate");
         }
 
@@ -186,7 +187,7 @@ namespace TerrariaInjector
                 return;
             }
             _shutdownFired = true;
-            Logger.Info("OnShutdown fired");
+            Logger.LogInformation("OnShutdown fired");
             Dispatch(_onShutdown, "OnShutdown");
         }
 
@@ -201,7 +202,7 @@ namespace TerrariaInjector
                 catch (Exception ex)
                 {
                     var inner = ex.InnerException ?? ex;
-                    Logger.Error($"{hookName} failed in {method.DeclaringType?.FullName}: {inner.Message}", inner);
+                    Logger.LogError($"{hookName} failed in {method.DeclaringType?.FullName}: {inner.Message}", inner);
                 }
             }
         }
