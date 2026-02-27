@@ -10,20 +10,20 @@ public static class ServiceExtensions
 {
     extension(ServiceContainer container)
     {
-        public ServiceContainer AddService<TService, TImplementation>() where TImplementation : class, TService
+        public ServiceContainer AddService<TService, TImplementation>(params object[] args) where TImplementation : class, TService
         {
-            container.AddService(typeof(TService), CreateInstance<TImplementation>());
+            container.AddService(typeof(TService), CreateInstance<TImplementation>(args));
             return container;
         }
 
         public ServiceContainer AddLogger<TService>(LoggerOptions options = null)
         {
-            if (LoggerImpl.Instance != null &&  LoggerImpl.Instance.Started)
+            if (LoggerManager.Instance != null &&  LoggerManager.Instance.Started)
             {
                 return container;
             }
-            LoggerImpl.CreateInstance(options);
-            container.AddService(typeof(TService), LoggerImpl.Instance);
+            LoggerManager.CreateInstance(options);
+            container.AddService(typeof(TService), LoggerManager.Instance);
             return container;
         }
 
@@ -61,7 +61,7 @@ public static class ServiceExtensions
 
         public ILogger GetLoggerService(string name, LoggerOptions options = null, EventHandler<LogInfoArgs> logMessageAdded = null)
         {
-            var logger = provider.GetRequiredService<ILogger>() as LoggerImpl;
+            var logger = provider.GetRequiredService<ILogger>() as LoggerManager;
             if (options == null)
             {
                 options = LoggerOptions.Default;

@@ -14,7 +14,7 @@ namespace TerrariaInjector.Core.Injecting
 
         public static void Initialize()
         {
-            GM.Logger.LogInformation(MethodBase.GetCurrentMethod().DeclaringType.Name + " initialized!");
+            Injector.Logger.LogInformation(MethodBase.GetCurrentMethod().DeclaringType.Name + " initialized!");
         }
         static MethodBase TargetMethod()
         {
@@ -28,7 +28,7 @@ namespace TerrariaInjector.Core.Injecting
 
             if (!version.Contains("Modded!"))
             {
-                version += " - Modded! (" + GM.ModCount + ")";
+                version += " - Modded! (" + Injector.ModCount + ")";
                 _game.GetType("Terraria.Main").GetField("versionNumber").SetValue(null, version);
             }
         }

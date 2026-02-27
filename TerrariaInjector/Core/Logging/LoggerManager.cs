@@ -8,7 +8,7 @@ using System.Threading;
 namespace TerrariaInjector.Core.Logging
 {
     // TODO: Change to actual implementation.
-    public sealed class LoggerImpl : ILogger
+    public sealed class LoggerManager : ILogger
     {
         internal static ILogger Instance { get; private set; }
         
@@ -37,14 +37,14 @@ namespace TerrariaInjector.Core.Logging
                 options = LoggerOptions.Default;
             }
 
-            Instance = new LoggerImpl(options);
+            Instance = new LoggerManager(options);
         }
         
-        private LoggerImpl() : this(LoggerOptions.Default)
+        private LoggerManager() : this(LoggerOptions.Default)
         {
             
         }
-        private LoggerImpl(LoggerOptions options)
+        private LoggerManager(LoggerOptions options)
         {
             Instance = this;
             Options = options;

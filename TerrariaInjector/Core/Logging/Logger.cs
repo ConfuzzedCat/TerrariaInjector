@@ -6,7 +6,7 @@ namespace TerrariaInjector.Core.Logging;
 
 public sealed class Logger : ILogger
 {
-    private LoggerImpl _logger;
+    private LoggerManager _logger;
     public bool Started { get; private set; }
     public bool HasErrors { get; private set; }
     public DateTime StartTime { get; private set; }
@@ -17,7 +17,7 @@ public sealed class Logger : ILogger
         Started = false;
     }
 
-    internal Logger(LoggerImpl logger, LoggerOptions options, EventHandler<LogInfoArgs> logMessageAdded)
+    internal Logger(LoggerManager logger, LoggerOptions options, EventHandler<LogInfoArgs> logMessageAdded)
     {
         _logger = logger;
         Started = true;
@@ -26,7 +26,7 @@ public sealed class Logger : ILogger
         FormatFileName();
         if (logMessageAdded != null)
         {
-            LoggerImpl.LogMessageAdded += logMessageAdded;
+            LoggerManager.LogMessageAdded += logMessageAdded;
         }
 
         if (options.OverwriteOldLog == false)
