@@ -14,17 +14,13 @@ using TerrariaInjector.Core.Injecting;
 using TerrariaInjector.Core.Logging;
 using TerrariaInjector.Extensions;
 
-[assembly: AssemblyTitle("TerrariaInjector")]
-[assembly: AssemblyProduct("TerrariaInjector")]
-[assembly: ComVisible(false)]
-[assembly: AssemblyVersion("2.0.0")]
-[assembly: AssemblyFileVersion("2.0.0")]
-[assembly: NeutralResourcesLanguage("en")]
-[assembly: CLSCompliant(false)]
+
 namespace TerrariaInjector
 {
     public static class Program
     {
+        public const string VERSION = "2.0.0";
+        
         public static ServiceContainer ServiceContainer { get; private set; }
         private static ILogger _logger;
 
