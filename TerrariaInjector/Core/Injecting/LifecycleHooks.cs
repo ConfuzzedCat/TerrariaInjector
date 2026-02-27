@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 using HarmonyLib;
 using TerrariaInjector.Core.Logging;
@@ -19,7 +20,11 @@ namespace TerrariaInjector.Core.Injecting
     /// </summary>
     public static class LifecycleHooks
     {
-        private static readonly ILogger Logger = Program.ServiceContainer.GetLoggerService(nameof(LifecycleHooks));
+        private static readonly ILogger Logger = Program.ServiceContainer.GetLoggerService(nameof(LifecycleHooks), () => new LoggerOptions()
+        {
+            LogFile = new FileInfo("logs/LifecycleHooks.log")
+            
+        });
 
         private static readonly List<MethodInfo> _onGameReady = new List<MethodInfo>();
         private static readonly List<MethodInfo> _onContentLoaded = new List<MethodInfo>();

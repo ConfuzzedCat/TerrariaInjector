@@ -11,6 +11,9 @@ public class LoggerOptions
     public bool LogErrorsToConsole { get; set; } = true;
     public int BatchInterval { get; set; } = 1000;
     public FileInfo LogFile { get; set; } = new(Constants.DEFAULT_LOG_FILE);
+    
+
+    // TODO: Implement this
     public bool OverwriteOldLog { get; set; } = true;
 
 

@@ -63,7 +63,7 @@
     <Compile Include="Core\Injecting\ModCountLabel.cs" />
     <Compile Include="Core\Logging\LoggerOptions.cs" />
     <Compile Include="Core\Logging\Logger.cs" />
-    <Compile Include="Core\Logging\LogMessage.cs" />
+    <Compile Include="Core\Logging\LogInfoArgs.cs" />
     <Compile Include="Utils\CallerArgumentExpressionAttribute.cs" />
     <Compile Include="Utils\Guard.cs" />
     <None Include="Extra\ModCompile\build.bat" />

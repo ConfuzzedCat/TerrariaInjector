@@ -8,19 +8,21 @@ using System.Threading;
 namespace TerrariaInjector.Core.Logging
 {
     // TODO: Change to actual implementation.
-    internal sealed class LoggerImpl : ILogger
+    public sealed class LoggerImpl : ILogger
     {
-        public static ILogger Instance { get; private set; }
+        internal static ILogger Instance { get; private set; }
         
         public bool Started { get; private set; }
         public bool HasErrors { get; private set; }
+        public DateTime StartTime { get; private set; }
         public LoggerOptions Options { get; }
 
         private static readonly Timer Timer = new Timer(Tick);
-        private static readonly ConcurrentQueue<LogMessage> LogQueue = new ConcurrentQueue<LogMessage>();
+        private static readonly ConcurrentQueue<LogInfoArgs> LogQueue = new ConcurrentQueue<LogInfoArgs>();
         
 
-        public static EventHandler<LogMessage> LogMessageAdded;
+        public static EventHandler<LogInfoArgs> LogMessageAdded;
+
         
 
         internal static void CreateInstance(LoggerOptions options = null)
@@ -38,11 +40,16 @@ namespace TerrariaInjector.Core.Logging
             Instance = new LoggerImpl(options);
         }
         
+        private LoggerImpl() : this(LoggerOptions.Default)
+        {
+            
+        }
         private LoggerImpl(LoggerOptions options)
         {
             Instance = this;
             Options = options;
             Started = true;
+            StartTime = DateTime.Now;
             Log("Logging started.");
         }
         public void Log(string message, Exception exp = null)
@@ -101,15 +108,46 @@ namespace TerrariaInjector.Core.Logging
                 throw new InvalidOperationException("Logger is not started");
             }
             
-            var logMessage = new LogMessage(level, options.LoggerName, message, exp);
+            var logMessage = new LogInfoArgs(level, options.LoggerName, message, options, exp);
             LogQueue.Enqueue(logMessage);
             if (options.LogToConsole && (options.LogErrorsToConsole || level >= LogLevel.Warning))
             {
-                Console.WriteLine(logMessage);
+                WriteToConsole(logMessage);
             }
             
             var _event = LogMessageAdded;
-            _event?.Invoke(null, logMessage);
+            _event?.Invoke(this, logMessage);
+        }
+
+        private static void WriteToConsole(LogInfoArgs logMessage)
+        {
+            var curColor = Console.ForegroundColor;
+            Console.ForegroundColor = GetConsoleColor(logMessage);
+            if (logMessage.IsError)
+            {
+                Console.Error.WriteLine(logMessage);
+            }
+            else
+            {
+                Console.WriteLine(logMessage);
+            }
+            Console.ForegroundColor = curColor;
+        }
+
+        private static ConsoleColor GetConsoleColor(LogInfoArgs logInfoArgs)
+        {
+            switch (logInfoArgs.LogLevel)
+            {
+                case LogLevel.Debug:
+                    return ConsoleColor.Gray;
+                case LogLevel.Information:
+                    return ConsoleColor.White;
+                case LogLevel.Warning:
+                    return ConsoleColor.Yellow;
+                case LogLevel.Error:
+                    return ConsoleColor.Red;
+            }
+            return Console.ForegroundColor;
         }
 
         public void LogDebug(FormattableString message, LoggerOptions options)
@@ -135,14 +173,21 @@ namespace TerrariaInjector.Core.Logging
 
         private static void Tick(object state)
         {
-            if (LogQueue.TryDequeue(out var message))
+            while (LogQueue.IsEmpty == false)
             {
+                if (!LogQueue.TryDequeue(out var message)) continue;
                 if (message.IsEmpty)
                 {
                     return;   
                 }
+
                 // maybe verify file and dir.
-                File.AppendAllText(Instance.Options.LogFile.FullName, message.ToString(true));
+                if (message.Options != null)
+                {
+                    WriteToLogFile(message.Options.LogFile, message);
+                }
+                WriteToLogFile(Instance.Options.LogFile, message);
+                
             }
 
             if (Instance.Started)
@@ -150,8 +195,28 @@ namespace TerrariaInjector.Core.Logging
                 Timer.Change(Instance.Options.BatchInterval, Timeout.Infinite);
             }
         }
-        
-        
+
+        private static void WriteToLogFile(FileInfo file, LogInfoArgs message)
+        {
+            VerifyLogDir(file);
+            File.AppendAllText(file.FullName, message.ToString(true));
+        }
+
+        private static void VerifyLogDir(FileInfo fileInfo)
+        {
+            var dir = fileInfo.Directory;
+            if (dir == null || dir.Exists == false)
+            {
+                if (string.IsNullOrWhiteSpace(fileInfo.DirectoryName))
+                {
+                    throw new DirectoryNotFoundException("Could not find the specified file directory");
+                }
+                var dirInfo = new DirectoryInfo(fileInfo.DirectoryName);
+                dirInfo.Create();
+            }
+        }
+
+
         public void Dispose()
         {
             // TODO release managed resources here

@@ -7,6 +7,7 @@ namespace TerrariaInjector.Core.Logging
         bool Started { get; }
         LoggerOptions Options { get; }
         bool HasErrors { get; }
+        DateTime StartTime { get; }
         
         void Log(FormattableString message, Exception exp = null, LogLevel level = LogLevel.Information);
         void LogDebug(FormattableString message);

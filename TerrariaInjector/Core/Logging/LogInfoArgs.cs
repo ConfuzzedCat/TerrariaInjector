@@ -3,7 +3,7 @@ using System.Threading;
 
 namespace TerrariaInjector.Core.Logging;
 
-public sealed class LogMessage : EventArgs
+public sealed class LogInfoArgs : EventArgs
 {
     public readonly DateTime Timestamp;
     public readonly string ThreadId;
@@ -11,8 +11,9 @@ public sealed class LogMessage : EventArgs
     public readonly string LogId;
     public readonly string Message;
     public readonly Exception Exception;
+    public readonly LoggerOptions Options;
 
-    public LogMessage(LogLevel level, string logId, FormattableString formattableString, Exception exp = null)
+    public LogInfoArgs(LogLevel level, string logId, FormattableString formattableString, LoggerOptions options, Exception exp = null)
     {
         Timestamp = DateTime.UtcNow;
         var thread = Thread.CurrentThread;
@@ -21,6 +22,7 @@ public sealed class LogMessage : EventArgs
         LogId = logId;
         Message = formattableString.ToString();
         Exception = exp;
+        Options = options;
     }
 
     public bool IsInformation => LogLevel == LogLevel.Information;
@@ -32,28 +34,12 @@ public sealed class LogMessage : EventArgs
 
     public override string ToString()
     {
-        var levelString = string.Empty;
-        switch (LogLevel)
-        {
-            case LogLevel.Debug:
-                levelString = "DEBUG";
-                break;
-            case LogLevel.Information:
-                levelString = "INFO ";
-                break;
-            case LogLevel.Warning:
-                levelString = "WARN ";
-                break;
-            case LogLevel.Error:
-                levelString = "ERROR";
-                break;
-        }
-        
+        var levelString = LogLevel.ToString().ToUpper().PadRight(5);
         
         var logId = string.IsNullOrEmpty(LogId) ? "" : $"[{LogId}]";
         var level = $"[{levelString}]";
         var exp = Exception != null ? $"\n[{Exception.GetType().Name}] {Exception.Message}\n{Exception.StackTrace}" : "";
-        return $"[{Timestamp:yyyy/MM/dd HH:mm:ss.fff}][{ThreadId}]{logId}{level} {Message}{exp}";
+        return $"[{Timestamp.ToString(Constants.LOG_DATE_FORMAT)}][{ThreadId}]{level}{logId} {Message}{exp}";
     }
 
     public string ToString(bool newline)

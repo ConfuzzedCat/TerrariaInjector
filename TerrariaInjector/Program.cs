@@ -1,6 +1,7 @@
 ﻿using HarmonyLib;
 using Mono.Cecil;
 using System;
+using System.CodeDom;
 using System.Collections.Generic;
 using System.ComponentModel.Design;
 using System.IO;
@@ -30,7 +31,8 @@ namespace TerrariaInjector
         private static ServiceContainer CreateServiceContainer()
         {
             return new ServiceContainer()
-                    .AddLogger<ILogger>();
+                    .AddLogger<ILogger>()
+                    .AddConfig<InjectorConfig>();
         }
         
         [STAThread]
@@ -39,14 +41,11 @@ namespace TerrariaInjector
             ServiceContainer = CreateServiceContainer();
             Console.Title = "TerrariaInjector";
             AppDomain.CurrentDomain.AssemblyResolve += GM.DependencyResolveEventHandler;
-            AppDomain.CurrentDomain.ProcessExit += Teardown;
+            //AppDomain.CurrentDomain.ProcessExit += Teardown;
             try
             {
-                LoggerOptions options = LoggerOptions.Default;
-                
-
                 // Load config early to determine log directory
-                var config = InjectorConfig.Load(GM.AssemblyFolder);
+                var config = ServiceContainer.GetRequiredService<InjectorConfig>();
                 string logDir = string.Empty;
                 if (!string.IsNullOrEmpty(config.LogsFolder))
                 {
@@ -57,9 +56,12 @@ namespace TerrariaInjector
                     }
                 }
 
-                options.LogFile =
-                    new FileInfo(Path.Combine(logDir, Path.GetFileNameWithoutExtension(Assembly.GetExecutingAssembly().Location) + ".log"));
-                _logger = ServiceContainer.GetLoggerService(nameof(Program));
+                LoggerOptions options = new LoggerOptions()
+                {
+                    LogFile = new FileInfo(Path.Combine(logDir, Path.GetFileNameWithoutExtension(Assembly.GetExecutingAssembly().Location) + ".log"))
+                };
+                
+                _logger = ServiceContainer.GetLoggerService(nameof(Program), options);
                 //_logger.Start(logDirectory: logDir);
                 GM.Inject(args);
             }
@@ -80,6 +82,8 @@ namespace TerrariaInjector
                         GM.Wait();
                     }
                 }
+
+                Teardown(null, null);
             }
         }
 
@@ -92,13 +96,26 @@ namespace TerrariaInjector
 
     public class InjectorConfig
     {
+        // [Paths]
         public string RootFolder { get; set; } = "Mods";
         public string CoreFolder { get; set; } = "";
         public string DepsFolder { get; set; } = "Libs";
         public string ModsFolder { get; set; } = "";
         public string LogsFolder { get; set; } = "";
+        // [Logging]
+        public bool ShouldSplitLogFiles { get; set; } = true;
 
-        public static InjectorConfig Load(string baseDir = "")
+        public InjectorConfig(string path)
+        {
+            
+        }
+
+        public InjectorConfig()
+        {
+            
+        }
+
+        private void Load(string baseDir = "")
         {
             string path1 = Path.Combine(baseDir, "TerrariaModder", "core", "config.ini");
             string path2 = Path.Combine(baseDir, "Mods", "config.ini");
@@ -112,20 +129,17 @@ namespace TerrariaInjector
 
                 try
                 {
-                    return ParseIni(File.ReadAllLines(path));
+                    ParseIni(File.ReadAllLines(path));
                 }
                 catch
                 {
                     // Fall through to defaults if parse fails
                 }
             }
-            return new InjectorConfig();
         }
 
-        private static InjectorConfig ParseIni(string[] lines)
+        private void ParseIni(string[] lines)
         {
-            var config = new InjectorConfig();
-
             foreach (var rawLine in lines)
             {
                 var line = rawLine.Trim();
@@ -148,24 +162,28 @@ namespace TerrariaInjector
                 switch (key)
                 {
                     case "rootfolder":
-                        config.RootFolder = value;
+                        this.RootFolder = value;
                         break;
                     case "corefolder":
-                        config.CoreFolder = value;
+                        this.CoreFolder = value;
                         break;
                     case "depsfolder":
-                        config.DepsFolder = value;
+                        this.DepsFolder = value;
                         break;
                     case "modsfolder":
-                        config.ModsFolder = value;
+                        this.ModsFolder = value;
                         break;
                     case "logsfolder":
-                        config.LogsFolder = value;
+                        this.LogsFolder = value;
+                        break;
+                    case "splitlogs":
+                        var wasFound = false;
+                        wasFound = bool.TryParse(value, out bool shouldSplitLogFiles);
+                        ShouldSplitLogFiles = wasFound && shouldSplitLogFiles;
                         break;
                 }
             }
 
-            return config;
         }
     }
 
@@ -188,9 +206,9 @@ namespace TerrariaInjector
             
             Logger = Program.ServiceContainer.GetLoggerService("GM", () => new LoggerOptions()
             {
-                LogFile = new FileInfo("GM.log")
+                LogFile = new FileInfo("%date%_GM.log"),
             });
-            Config = InjectorConfig.Load(AssemblyFolder);
+            Config = Program.ServiceContainer.GetRequiredService<InjectorConfig>();
             RootDir = Path.Combine(AssemblyFolder, Config.RootFolder);
             CoreDir = string.IsNullOrEmpty(Config.CoreFolder)
                 ? RootDir
@@ -367,7 +385,9 @@ namespace TerrariaInjector
             {
                 Logger.LogDebug($"Loaded: {entry.FullName}");
                 if (entry.FullName.IndexOf("terraria", StringComparison.CurrentCultureIgnoreCase) >= 0)
+                {
                     Logger.LogDebug($"\t{entry.CodeBase}");
+                }
             });
 
 
@@ -394,7 +414,7 @@ namespace TerrariaInjector
 
             Logger.LogInformation("Invoke game entry point ...");
             Thread.Sleep(1000);
-            game.EntryPoint.Invoke(null, new object[] { args });
+            game.EntryPoint.Invoke(null, [args]);
         }
 
         public static byte[] DumpAssembly(Assembly assembly)
@@ -457,10 +477,11 @@ namespace TerrariaInjector
             {
                 try
                 {
-                    Config = InjectorConfig.Load(AssemblyFolder);
+                    Config = Program.ServiceContainer.GetRequiredService<InjectorConfig>();
                 }
-                catch
+                catch(Exception e)
                 {
+                    Logger.LogError("There was an error trying to load the config.", e);
                 }
             }
 
