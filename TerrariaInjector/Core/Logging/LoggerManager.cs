@@ -25,11 +25,11 @@ namespace TerrariaInjector.Core.Logging
 
         
 
-        internal static void CreateInstance(LoggerOptions options = null)
+        internal static ILogger CreateInstance(LoggerOptions options = null)
         {
             if (Instance is { Started: true })
             {
-                return;
+                return Instance;
             }
             
             if (options == null)
@@ -38,11 +38,12 @@ namespace TerrariaInjector.Core.Logging
             }
 
             Instance = new LoggerManager(options);
+            
+            return Instance;
         }
         
-        private LoggerManager() : this(LoggerOptions.Default)
+        public LoggerManager() : this(LoggerOptions.Default)
         {
-            
         }
         private LoggerManager(LoggerOptions options)
         {

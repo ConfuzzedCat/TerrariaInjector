@@ -1,6 +1,7 @@
 ﻿#nullable enable
 using System;
 using System.Runtime.CompilerServices;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace TerrariaInjector.Utils
 {
@@ -12,6 +13,14 @@ namespace TerrariaInjector.Utils
             if (obj == null)
             {
                 throw new ArgumentNullException(paramName);
+            }
+        }
+
+        public static void ThrowIfDisposed(bool condition, object instance)
+        {
+            if (condition)
+            {
+                throw new ObjectDisposedException(instance?.GetType().FullName);
             }
         }
     }

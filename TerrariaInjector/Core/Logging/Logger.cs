@@ -17,7 +17,7 @@ public sealed class Logger : ILogger
         Started = false;
     }
 
-    internal Logger(LoggerManager logger, LoggerOptions options, EventHandler<LogInfoArgs> logMessageAdded)
+    public Logger(LoggerManager logger, LoggerOptions options, EventHandler<LogInfoArgs> logMessageAdded)
     {
         _logger = logger;
         Started = true;

@@ -1,4 +1,6 @@
-﻿namespace TerrariaInjector.Core.Logging
+﻿using System;
+
+namespace TerrariaInjector.Core.Logging
 {
     public enum LogLevel
     {

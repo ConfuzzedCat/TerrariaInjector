@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using HarmonyLib;
+using Microsoft.Extensions.DependencyInjection;
 using TerrariaInjector.Core.Logging;
 using TerrariaInjector.Extensions;
 
@@ -18,40 +19,54 @@ namespace TerrariaInjector.Core.Injecting
     ///   OnFirstUpdate()    — First Main.Update() postfix (game loop active)
     ///   OnShutdown()       — Main_Exiting prefix (before Terraria disposes systems)
     /// </summary>
-    public static class LifecycleHooks
+    public class LifecycleHooks
     {
-        private static readonly ILogger Logger = Program.ServiceContainer.GetLoggerService(nameof(LifecycleHooks), () => new LoggerOptions()
+        private readonly ILogger _logger;
+        private static ILogger _loggerStatic;
+            /*
+            = Program.ServiceContainer.GetLoggerService(nameof(LifecycleHooks), () => new LoggerOptions()
         {
             LogFile = new FileInfo("logs/LifecycleHooks.log")
             
         });
+             */
 
-        private static readonly List<MethodInfo> _onGameReady = new List<MethodInfo>();
-        private static readonly List<MethodInfo> _onContentLoaded = new List<MethodInfo>();
-        private static readonly List<MethodInfo> _onFirstUpdate = new List<MethodInfo>();
-        private static readonly List<MethodInfo> _onShutdown = new List<MethodInfo>();
+        private static List<MethodInfo> _onGameReady;
+        private static List<MethodInfo> _onContentLoaded;
+        private static List<MethodInfo> _onFirstUpdate;
+        private static List<MethodInfo> _onShutdown;
 
         private static bool _gameReadyFired;
         private static bool _contentLoadedFired;
         private static bool _firstUpdateFired;
         private static bool _shutdownFired;
 
+        public LifecycleHooks([FromKeyedServices("LifecycleHooks")]ILogger logger)
+        {
+            _logger = logger;
+            _onGameReady = [];
+            _onContentLoaded = [];
+            _onFirstUpdate = [];
+            _onShutdown = [];
+            _loggerStatic = _logger;
+        }
+        
         /// <summary>
         /// Discover lifecycle methods in mod assemblies and register Harmony patches
         /// on Terraria's Main class to dispatch them at the right time.
         /// </summary>
-        public static void Register(Assembly game, Harmony harmony, List<Assembly> mods)
+        public void Register(Assembly game, Harmony harmony, List<Assembly> mods)
         {
             DiscoverMethods(mods);
 
             int total = _onGameReady.Count + _onContentLoaded.Count +
                         _onFirstUpdate.Count + _onShutdown.Count;
-            Logger.LogInformation($"Registering hooks ({total} method(s) found across {mods.Count} mod(s))");
+            _logger.LogInformation($"Registering hooks ({total} method(s) found across {mods.Count} mod(s))");
 
             var mainType = game.GetType("Terraria.Main");
             if (mainType == null)
             {
-                Logger.LogError("Terraria.Main not found — lifecycle hooks not registered", new NullReferenceException("type of 'Terraria.Main' was null"));
+                _logger.LogError("Terraria.Main not found — lifecycle hooks not registered", new NullReferenceException("type of 'Terraria.Main' was null"));
                 return;
             }
 
@@ -76,13 +91,13 @@ namespace TerrariaInjector.Core.Injecting
                 nameof(OnShutdown_Prefix), patchType: "prefix");
         }
 
-        private static void PatchMethod(Harmony harmony, Type targetType, string methodName,
+        private void PatchMethod(Harmony harmony, Type targetType, string methodName,
             BindingFlags flags, string callbackName, string patchType)
         {
             var target = targetType.GetMethod(methodName, flags);
             if (target == null)
             {
-                Logger.LogWarning($"Method not found: Main.{methodName} — hook skipped");
+                _logger.LogWarning($"Method not found: Main.{methodName} — hook skipped");
                 return;
             }
 
@@ -98,14 +113,14 @@ namespace TerrariaInjector.Core.Injecting
                     harmony.Patch(target, postfix: new HarmonyMethod(callback));
                     break;
                 default:
-                    Logger.LogWarning($"Unknown patch type '{patchType}' for Main.{methodName} — hook skipped");
+                    _logger.LogWarning($"Unknown patch type '{patchType}' for Main.{methodName} — hook skipped");
                     return;
             }
 
-            Logger.LogInformation($"Hooked Main.{methodName} ({patchType})");
+            _logger.LogInformation($"Hooked Main.{methodName} ({patchType})");
         }
 
-        private static void DiscoverMethods(List<Assembly> mods)
+        private void DiscoverMethods(List<Assembly> mods)
         {
             var hookMap = new Dictionary<string, List<MethodInfo>>
             {
@@ -143,7 +158,7 @@ namespace TerrariaInjector.Core.Injecting
                         if (method != null)
                         {
                             kvp.Value.Add(method);
-                            Logger.LogInformation($"Found {kvp.Key}() in {type.FullName}");
+                            _logger.LogInformation($"Found {kvp.Key}() in {type.FullName}");
                         }
                     }
                 }
@@ -159,7 +174,7 @@ namespace TerrariaInjector.Core.Injecting
                 return;
             }
             _gameReadyFired = true;
-            Logger.LogInformation("OnGameReady fired");
+            _loggerStatic.LogInformation("OnGameReady fired");
             Dispatch(_onGameReady, "OnGameReady");
         }
 
@@ -170,7 +185,7 @@ namespace TerrariaInjector.Core.Injecting
                 return;
             }
             _contentLoadedFired = true;
-            Logger.LogInformation("OnContentLoaded fired");
+            _loggerStatic.LogInformation("OnContentLoaded fired");
             Dispatch(_onContentLoaded, "OnContentLoaded");
         }
 
@@ -181,7 +196,7 @@ namespace TerrariaInjector.Core.Injecting
                 return;
             }
             _firstUpdateFired = true;
-            Logger.LogInformation("OnFirstUpdate fired");
+            _loggerStatic.LogInformation("OnFirstUpdate fired");
             Dispatch(_onFirstUpdate, "OnFirstUpdate");
         }
 
@@ -192,7 +207,7 @@ namespace TerrariaInjector.Core.Injecting
                 return;
             }
             _shutdownFired = true;
-            Logger.LogInformation("OnShutdown fired");
+            _loggerStatic.LogInformation("OnShutdown fired");
             Dispatch(_onShutdown, "OnShutdown");
         }
 
@@ -207,7 +222,7 @@ namespace TerrariaInjector.Core.Injecting
                 catch (Exception ex)
                 {
                     var inner = ex.InnerException ?? ex;
-                    Logger.LogError($"{hookName} failed in {method.DeclaringType?.FullName}: {inner.Message}", inner);
+                    _loggerStatic.LogError($"{hookName} failed in {method.DeclaringType?.FullName}: {inner.Message}", inner);
                 }
             }
         }

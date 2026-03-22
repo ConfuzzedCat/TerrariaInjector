@@ -30,6 +30,37 @@ depsFolder=core/deps
 modsFolder=mods
 logsFolder=core/logs
 ```
+## (2.0.0) Dependency Injection
+Add services for your or other mods to use. You need to implement the [IServiceInfo](TerrariaInjector/Core/DI/IServiceInfo.cs) class
+```csharp
+class SomeModServiceInfo : IServiceInfo
+{
+    public void RegisterServices(IChildServiceCollection  serviceCollection)
+    {
+        serviceCollection
+            .AddScoped<TService, TImpl>()
+            .AddKeyedScoped<TService, TImpl>("SomeKey")
+            // Uses TerrariaInjector.Extensions.LoggerServiceExtensions
+            .AddKeyedLogger("SomeModLogger", new LoggerOptions()
+            {
+                // Add logger options.
+            },
+            (sender, logInfoArgs) => 
+            {
+                // Handle logInfoArgs.
+            }
+        );
+    }
+}
+```
+Supports singleton, transient and scoped, and their keyed variant.
+
+To get the services later, use the `ServiceManager.ChildServiceProvider`
+```csharp
+using var scope = ServiceManager.ChildServiceProvider.CreateScope();
+var service = scope.ServiceProvider.GetRequiredService<TService>();
+```
+
 
 ## Server Support
 
@@ -47,6 +78,7 @@ You can also use the files in the 'Extra/ModCompile' to help with compiling, jus
 
 ## How to target another game
 simple make a target file in the modfolder of the game, with the name of the game with the extension eg. 'Terraria.exe'. For an example check the target file in the 'Extra' folder.
+
 
 ## Credits
 Thank you Deltaone for help with the OutOfMemomery bug and over all fixing and cleaning.

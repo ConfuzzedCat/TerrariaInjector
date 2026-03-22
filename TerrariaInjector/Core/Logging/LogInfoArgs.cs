@@ -34,7 +34,12 @@ public sealed class LogInfoArgs : EventArgs
 
     public override string ToString()
     {
-        var levelString = LogLevel.ToString().ToUpper().PadRight(5);
+        var levelString = LogLevel.ToString();
+        if (LogLevel is LogLevel.Information or LogLevel.Warning)
+        {
+            levelString = levelString.Substring(0, 4);
+        }
+        levelString = levelString.ToUpper().PadRight(5);
         
         var logId = string.IsNullOrEmpty(LogId) ? "" : $"[{LogId}]";
         var level = $"[{levelString}]";
