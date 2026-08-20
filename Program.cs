@@ -249,6 +249,12 @@ namespace TerrariaInjector
                 ModCount++;
                 foreach (var type in mod.GetTypes())
                 {
+                    var interfaceNames = type.GetInterfaces().Select(t => t.Name);
+                    if(interfaceNames.Contains("IMod")
+                    {
+                        continue;   
+                    }
+                    
                     try
                     {
                         var initMth = type.GetMethod("Init");
