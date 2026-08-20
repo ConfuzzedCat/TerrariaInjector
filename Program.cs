@@ -251,25 +251,37 @@ namespace TerrariaInjector
                 {
                     try
                     {
-                        type.GetMethod("Init")?.Invoke(new object(), new object[] { });
-                        type.GetMethod("Initialize")?.Invoke(new object(), new object[] { });
+                        var initMth = type.GetMethod("Init");
+                        if(initMth != null)
+                        {
+                            initMth.Invoke(new object(), new object[] { });
+                        }
+                        var initializeMth = type.GetMethod("Initialize");
+                        if(initializeMth != null)
+                        {
+                            initializeMth.Invoke(new object(), new object[] { });
+                        }
                     }
-                    catch
+                    catch (Exception e)
                     {
-                        // Expected for mods that don't use Init/Initialize pattern
+                        Logger.Error($"There was an exception trying to run init methods for {file}.", e);
                     }
-                    if (type.GetMethod("PrePatch") != null && gameAssemblyDef == null)
+                    var prePatchMth = type.GetMethod("PrePatch");
+                    if(prePatchMth != null)
                     {
-                        Logger.Info($"Loading game assembly definition: {targetPath}");
-                        gameAssemblyDef = AssemblyDefinition.ReadAssembly(targetPath, new ReaderParameters() { ReadWrite = true, InMemory = true });
-                    }
-                    try
-                    {
-                        type.GetMethod("PrePatch")?.Invoke(new object(), new object[] { gameAssemblyDef });
-                    }
-                    catch
-                    {
-                        // Expected for mods that don't use PrePatch pattern
+                        if gameAssemblyDef == null)
+                        {
+                            Logger.Info($"Loading game assembly definition: {targetPath}");
+                            gameAssemblyDef = AssemblyDefinition.ReadAssembly(targetPath, new ReaderParameters() { ReadWrite = true, InMemory = true });
+                        }
+                        try
+                        {
+                            prePatchMth.Invoke(new object(), new object[] { gameAssemblyDef });
+                        }
+                        catch(Exception e)
+                        {
+                            Logger.Error($"There was an exception trying to run PrePatch for {file}", e);
+                        }
                     }
                 }
             }
