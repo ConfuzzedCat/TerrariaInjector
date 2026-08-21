@@ -250,7 +250,7 @@ namespace TerrariaInjector
                 foreach (var type in mod.GetTypes())
                 {
                     var interfaceNames = type.GetInterfaces().Select(t => t.Name);
-                    if(interfaceNames.Contains("IMod")
+                    if(interfaceNames.Contains("IMod"))
                     {
                         continue;   
                     }
@@ -275,7 +275,7 @@ namespace TerrariaInjector
                     var prePatchMth = type.GetMethod("PrePatch");
                     if(prePatchMth != null)
                     {
-                        if gameAssemblyDef == null)
+                        if (gameAssemblyDef == null)
                         {
                             Logger.Info($"Loading game assembly definition: {targetPath}");
                             gameAssemblyDef = AssemblyDefinition.ReadAssembly(targetPath, new ReaderParameters() { ReadWrite = true, InMemory = true });
