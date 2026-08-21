@@ -265,8 +265,14 @@ namespace TerrariaInjector
                         {
                             Logger.Error($"Ambiguous match found for method '{methodName}'.", e);
                         }
-                        catch (TargetException) { }
-                        catch (TargetParameterCountException) { }
+                        catch (TargetException) 
+                        {
+                            Logger.Debug($"Invalid target, skipping...");
+                        }
+                        catch (TargetParameterCountException)
+                        {
+                            Logger.Debug($"Invalid arguments count, skipping...");
+                        }
                         catch (Exception e)
                         {
                             Logger.Error($"There was an exception trying to run init methods for {file}.", e);
