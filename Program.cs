@@ -249,27 +249,52 @@ namespace TerrariaInjector
                 ModCount++;
                 foreach (var type in mod.GetTypes())
                 {
-                    try
+                    var interfaceNames = type.GetInterfaces().Select(t => t.Name);
+                    if(interfaceNames.Contains("IMod"))
                     {
-                        type.GetMethod("Init")?.Invoke(new object(), new object[] { });
-                        type.GetMethod("Initialize")?.Invoke(new object(), new object[] { });
+                        continue;   
                     }
-                    catch
+
+                    foreach (var methodName in new string[] { "Init", "Initialize" })
                     {
-                        // Expected for mods that don't use Init/Initialize pattern
+                        try
+                        {
+                            var initMth = type.GetMethod(methodName)?.Invoke(new object(), new object[] { });
+                        }
+                        catch (AmbiguousMatchException e)
+                        {
+                            Logger.Error($"Ambiguous match found for method '{methodName}'.", e);
+                        }
+                        catch (TargetException) 
+                        {
+                            Logger.Debug($"Invalid target, skipping...");
+                        }
+                        catch (TargetParameterCountException)
+                        {
+                            Logger.Debug($"Invalid arguments count, skipping...");
+                        }
+                        catch (Exception e)
+                        {
+                            Logger.Error($"There was an exception trying to run init methods for {file}.", e);
+                        }
                     }
-                    if (type.GetMethod("PrePatch") != null && gameAssemblyDef == null)
+
+                    var prePatchMth = type.GetMethod("PrePatch");
+                    if(prePatchMth != null)
                     {
-                        Logger.Info($"Loading game assembly definition: {targetPath}");
-                        gameAssemblyDef = AssemblyDefinition.ReadAssembly(targetPath, new ReaderParameters() { ReadWrite = true, InMemory = true });
-                    }
-                    try
-                    {
-                        type.GetMethod("PrePatch")?.Invoke(new object(), new object[] { gameAssemblyDef });
-                    }
-                    catch
-                    {
-                        // Expected for mods that don't use PrePatch pattern
+                        if (gameAssemblyDef == null)
+                        {
+                            Logger.Info($"Loading game assembly definition: {targetPath}");
+                            gameAssemblyDef = AssemblyDefinition.ReadAssembly(targetPath, new ReaderParameters() { ReadWrite = true, InMemory = true });
+                        }
+                        try
+                        {
+                            prePatchMth.Invoke(new object(), new object[] { gameAssemblyDef });
+                        }
+                        catch(Exception e)
+                        {
+                            Logger.Error($"There was an exception trying to run PrePatch for {file}", e);
+                        }
                     }
                 }
             }
