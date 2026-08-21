@@ -250,32 +250,33 @@ namespace TerrariaInjector
                 foreach (var type in mod.GetTypes())
                 {
                     var interfaceNames = type.GetInterfaces().Select(t => t.Name);
-                    if(interfaceNames.Contains("IMod")
+                    if(interfaceNames.Contains("IMod"))
                     {
                         continue;   
                     }
-                    
-                    try
+
+                    foreach (var methodName in new string[] { "Init", "Initialize" })
                     {
-                        var initMth = type.GetMethod("Init");
-                        if(initMth != null)
+                        try
                         {
-                            initMth.Invoke(new object(), new object[] { });
+                            var initMth = type.GetMethod(methodName)?.Invoke(new object(), new object[] { });
                         }
-                        var initializeMth = type.GetMethod("Initialize");
-                        if(initializeMth != null)
+                        catch (AmbiguousMatchException e)
                         {
-                            initializeMth.Invoke(new object(), new object[] { });
+                            Logger.Error($"Ambiguous match found for method '{methodName}'.", e);
+                        }
+                        catch (TargetException) { }
+                        catch (TargetParameterCountException) { }
+                        catch (Exception e)
+                        {
+                            Logger.Error($"There was an exception trying to run init methods for {file}.", e);
                         }
                     }
-                    catch (Exception e)
-                    {
-                        Logger.Error($"There was an exception trying to run init methods for {file}.", e);
-                    }
+
                     var prePatchMth = type.GetMethod("PrePatch");
                     if(prePatchMth != null)
                     {
-                        if gameAssemblyDef == null)
+                        if (gameAssemblyDef == null)
                         {
                             Logger.Info($"Loading game assembly definition: {targetPath}");
                             gameAssemblyDef = AssemblyDefinition.ReadAssembly(targetPath, new ReaderParameters() { ReadWrite = true, InMemory = true });
